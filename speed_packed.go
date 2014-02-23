@@ -130,21 +130,18 @@ func (f *Board_BoolPacked) Iterate(next *Board_BoolPacked) { // OPTIMIZED FOR Bo
 }
 
 func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked) int { // OPTIMIZED FOR BoolPacked
-	r:=byte(0)
+	r := 0
 	match := int32(0)
 	lowest_byte := int32(0xff)
 	for y := 1; y<=board_height; y++ {
 		match = attempt.s[y] ^ target.s[y] // This covers all of lower 24 bits, which is what we care about
 		if match>0 {
-			r += 	count_bits_array[(match>>0) & lowest_byte] + 
-					count_bits_array[(match>>8) & lowest_byte] + 
-					count_bits_array[(match>>16) & lowest_byte] 
-		}
-		if r>200 { // Prevent overflow in r
-			return int(r)
+			r += int(count_bits_array[(match>>0) & lowest_byte] + 
+					 count_bits_array[(match>>8) & lowest_byte] + 
+					 count_bits_array[(match>>16) & lowest_byte])
 		}
 	}
-	return int(r)
+	return r
 }
 
 
@@ -487,13 +484,11 @@ func (i *ImageSet) DrawStatsCRLF() {
 func main_verify_training_examples() {
 	var kaggle LifeProblemSet
 
-	problem_offset := 300
+	problem_offset := 100
 
 	id_list := []int{}
-	id_map := make(map[int]bool)
 	for id := problem_offset; id < problem_offset+10; id++ {
 		id_list = append(id_list, id)
-		id_map[id] = true
 	}
 	kaggle.load_csv("data/train.csv", true, id_list)
 	//fmt.Println(kaggle.problem[107].start)
@@ -559,6 +554,10 @@ func main_visualize_density() {
 	}
 
 	image.save("images/density.png")
+}
+
+func main_population_score() {
+	//image := NewImageSet(10, 11) // 10 rows of 11 images each, formatted 'appropriately'
 }
 
 func main() {
