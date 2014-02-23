@@ -22,10 +22,13 @@ import (
 	"image/png"
 )
 
+const board_width  int =20
+const board_height int =20
+
 // Board represents a two-dimensional field of cells.
 type Board_BoolPacked struct {
 	s    []int32
-	w, h int
+	h,w  int // Only used for GENERIC functions
 }
 
 var count_bits_array [512]byte
@@ -44,13 +47,111 @@ func build_count_bits_array() {
 }
 
 // NewBoard_BoolArray returns an empty field of the specified width and height.
-func NewBoard_BoolPacked(w, h int) *Board_BoolPacked {
-	if w > 29 {
-		fmt.Print("TOO LARGE AN ARRAY for int32!\n")
+func NewBoard_BoolPacked(w,h int) *Board_BoolPacked { // OPTIMIZED FOR BoolPacked
+	if board_width > 22 {
+		fmt.Print("TOO LARGE AN ARRAY for bottom 3 bytes of int32!\n")
 	}
-	s := make([]int32, h+2) // Need padding before and after
-	return &Board_BoolPacked{s: s, w: w, h: h}
+	
+	s := make([]int32, board_height+2) // Need padding before and after
+	return &Board_BoolPacked{s: s, h:board_height, w:board_width}
 }
+
+func (dest *Board_BoolPacked) CopyFrom(src *Board_BoolPacked) { // OPTIMIZED FOR BoolPacked
+	dest.s = make([]int32, board_height+2)
+	for y := 0; y<board_height+2; y++ {
+		dest.s[y] = src.s[y]
+	}
+}
+
+// Set sets the state of the specified cell to the given value.
+func (f *Board_BoolPacked) Set(x, y int, b bool) { // OPTIMIZED FOR BoolPacked
+	//  The (+1,+1) offsets are to account for the zeroed-out borders
+	if b { //  This is a set=TRUE
+		f.s[y+1] |= (1 << uint(x+1))
+	} else { //  This is a set=FALSE
+		f.s[y+1] &= ^(1 << uint(x+1))
+	}
+}
+
+// Alive reports whether the specified cell is alive.
+// If the x or y coordinates are outside the field boundaries they are not wrapped
+func (f *Board_BoolPacked) isSet(x, y int) bool { // OPTIMIZED FOR BoolPacked
+	return (f.s[y+1] & (1 << uint(x+1))) != 0
+}
+
+// Update the state of the next field (next) in-place from the current field (f).
+func (f *Board_BoolPacked) Iterate(next *Board_BoolPacked) { // OPTIMIZED FOR BoolPacked
+	// This is done rather over-efficiently...
+
+	// These are constants - the game bits pass over them
+	top_filter := int32(7) //  111
+	mid_filter := int32(5) //  101
+	bot_filter := int32(7) //  111
+
+	current_filter := int32(2) //  010
+
+	next.s[0] = 0
+	for r := 1; r <= board_height; r++ {
+		r_top := f.s[r-1]
+		r_mid := f.s[r]
+		r_bot := f.s[r+1]
+
+		acc := int32(0)
+		p := int32(2) // Start in the middle row, one column in (000000010b)
+
+		for c := 1; c <= board_width; c++ {
+			cnt := count_bits_array[((r_top&top_filter)<<6)|
+									((r_mid&mid_filter)<<3)|
+									((r_bot&bot_filter))    ]
+
+			// if 1==1 { acc |= p }  // Check bit-twiddling bounds
+
+			// Return next state according to the game rules:
+			//  exactly 3 neighbors: on,
+			//  exactly 2 neighbors: maintain current state,
+			//  otherwise: off.
+			//  return alive == 3 || alive == 2 && f.Alive(x, y)
+
+			if (cnt == 3) || (cnt == 2 && ((r_mid&current_filter) != 0)) {
+				acc |= p
+			}
+
+			// Move the 'setting-bit' over
+			p <<= 1
+
+			// Shift the arrays over into base filterable position
+			r_top >>= 1
+			r_mid >>= 1
+			r_bot >>= 1
+		}
+		next.s[r] = acc
+	}
+	next.s[board_height+1] = 0
+}
+
+func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked) int { // OPTIMIZED FOR BoolPacked
+	r:=byte(0)
+	match := int32(0)
+	lowest_byte := int32(0xff)
+	for y := 1; y<=board_height; y++ {
+		match = attempt.s[y] ^ target.s[y] // This covers all of lower 24 bits, which is what we care about
+		if match>0 {
+			r += 	count_bits_array[(match>>0) & lowest_byte] + 
+					count_bits_array[(match>>8) & lowest_byte] + 
+					count_bits_array[(match>>16) & lowest_byte] 
+		}
+		if r>200 { // Prevent overflow in r
+			return int(r)
+		}
+	}
+	return int(r)
+}
+
+
+/****************************************************************************************/
+// The following will work on more generalized GoL mechanics, but are 10x slower
+/****************************************************************************************/
+
 
 // puts Board in a random state
 func (f *Board_BoolPacked) UniformRandom(pct float32) {
@@ -94,23 +195,6 @@ func (f *Board_BoolPacked) LoadArray(csv_strings []string) {
 	}
 }
 
-// Set sets the state of the specified cell to the given value.
-func (f *Board_BoolPacked) Set(x, y int, b bool) {
-	//	f.s[y][x] = b
-	//  The (+1,+1) offsets are to account for the zeroed-out borders
-	if b { //  This is a set=TRUE
-		f.s[y+1] |= (1 << uint(x+1))
-	} else { //  This is a set=FALSE
-		f.s[y+1] &= ^(1 << uint(x+1))
-	}
-}
-
-// Alive reports whether the specified cell is alive.
-// If the x or y coordinates are outside the field boundaries they are not wrapped
-func (f *Board_BoolPacked) isSet(x, y int) bool {
-	return (f.s[y+1] & (1 << uint(x+1))) != 0
-}
-
 // Next returns the state of the specified cell at the next time step.
 func (f *Board_BoolPacked) IterateCell(x, y int) bool {
 	// Count the adjacent cells that are alive.
@@ -138,57 +222,6 @@ func (f *Board_BoolPacked) Iterate_Generic(next *Board_BoolPacked) {
 	}
 }
 
-func (f *Board_BoolPacked) Iterate(next *Board_BoolPacked) {
-	// Update the state of the next field (next) in-place from the current field (f).
-
-	// This is done rather over-efficiently...
-
-	// These are constants - the game bits pass over them
-	top_filter := int32(7) //  111
-	mid_filter := int32(5) //  101
-	bot_filter := int32(7) //  111
-
-	current_filter := int32(2) //  010
-
-	next.s[0] = 0
-	for r := 1; r <= f.h; r++ {
-		r_top := f.s[r-1]
-		r_mid := f.s[r]
-		r_bot := f.s[r+1]
-
-		acc := int32(0)
-		p := int32(2) // Start in the middle row, one column in (000000010b)
-
-		for c := 1; c <= f.w; c++ {
-			cnt := count_bits_array[((r_top&top_filter)<<6)|
-				((r_mid&mid_filter)<<3)|
-				(r_bot&bot_filter)]
-
-			// if 1==1 { acc |= p }  // Check bit-twiddling bounds
-
-			// Return next state according to the game rules:
-			//  exactly 3 neighbors: on,
-			//  exactly 2 neighbors: maintain current state,
-			//  otherwise: off.
-			//  return alive == 3 || alive == 2 && f.Alive(x, y)
-
-			if (cnt == 3) || (cnt == 2 && (r_mid&current_filter) != 0) {
-				acc |= p
-			}
-
-			// Move the 'setting-bit' over
-			p <<= 1
-
-			// Shift the arrays over into base filterable position
-			r_top >>= 1
-			r_mid >>= 1
-			r_bot >>= 1
-		}
-		next.s[r] = acc
-	}
-	next.s[f.h+1] = 0
-}
-
 // String returns the game board as a string.
 func (f *Board_BoolPacked) String() string {
 	var buf bytes.Buffer
@@ -198,9 +231,10 @@ func (f *Board_BoolPacked) String() string {
 			b := byte('-')
 			if x < 0 || x >= f.w || y < 0 || y >= f.h {
 				b = '0'
-			}
-			if f.isSet(x, y) {
-				b = '*'
+			} else { 
+				if f.isSet(x, y) {
+					b = '*'
+				}
 			}
 			buf.WriteByte(b)
 		}
@@ -243,11 +277,9 @@ type BoardIterator struct {
 
 // BoardIterator returns a new Life game state
 func NewBoardIterator(w, h int) *BoardIterator {
-	if count_bits_array[1] != 1 {
-		build_count_bits_array()
-	}
 	return &BoardIterator{
-		current: NewBoard_BoolPacked(w, h), temp_internal_only: NewBoard_BoolPacked(w, h),
+		current: NewBoard_BoolPacked(w, h), 
+		temp_internal_only: NewBoard_BoolPacked(w, h),
 	}
 }
 
@@ -260,8 +292,13 @@ func (bi *BoardIterator) Iterate(n int) {
 	}
 }
 
+func init() {
+	fmt.Print("init() called\n")
+	build_count_bits_array()
+}
+
 func main_orig() {
-	l := NewBoardIterator(20, 20)
+	l := NewBoardIterator(board_width, board_height)
 	for i := 0; i < 65; i++ {
 		l.Iterate(1)
 		fmt.Print("\x0c", l) // Clear screen and print field.
@@ -271,7 +308,7 @@ func main_orig() {
 
 func main_test_random() {
 	for pct := float32(0.1); pct < 1.0; pct += 0.1 {
-		l := NewBoardIterator(20, 20)
+		l := NewBoardIterator(board_width, board_height)
 		l.current.UniformRandom(pct + 0.01)
 
 		//fmt.Print("\x0c", l)
@@ -290,7 +327,7 @@ X-X
 	start := time.Now()
 
 	for iter := 0; iter < 1000; iter++ {
-		l := NewBoardIterator(20, 20)
+		l := NewBoardIterator(board_width, board_height)
 		l.current.LoadString(glider[1:])
 
 		l.Iterate(65)
@@ -306,7 +343,7 @@ X-X
 
 func main_loader() {
 	for pct := float32(0.1); pct < 1.0; pct += 0.1 {
-		l := NewBoardIterator(20, 20)
+		l := NewBoardIterator(board_width, board_height)
 		l.current.UniformRandom(pct + 0.01)
 
 		//fmt.Print("\x0c", l)
@@ -315,9 +352,6 @@ func main_loader() {
 		fmt.Print(l.current, "\n")
 	}
 }
-
-//type Individual struct {
-//}
 
 type LifeProblem struct {
 	id         int
@@ -375,8 +409,8 @@ func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
 			//fmt.Println(record) // record has the type []string
 			steps, _ := strconv.Atoi(record[1])
 
-			start := NewBoard_BoolPacked(20, 20)
-			end := NewBoard_BoolPacked(20, 20)
+			start := NewBoard_BoolPacked(board_width, board_height)
+			end := NewBoard_BoolPacked(board_width, board_height)
 			if is_training {
 				start.LoadArray(record[2:402])
 				end.LoadArray(record[402:802])
@@ -390,11 +424,11 @@ func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
 				end:   end,
 				steps: steps,
 			}
-			fmt.Printf("Loaded problem[%d] : steps=%d\n", id, steps)
+			//fmt.Printf("Loaded problem[%d] : steps=%d\n", id, steps)
 			//fmt.Print(s.problem[id].start)
 		}
 		if id > id_max {
-			return // fact-of-life : ids are ascending order
+			return // fact-of-life : ids are ascending order, so can quit reading early
 		}
 	}
 }
@@ -406,7 +440,7 @@ type ImageSet struct {
 }
 
 func NewImageSet(rows, cols int) *ImageSet {
-	im := image.NewRGBA(image.Rect(0, 0, cols*(20+2)+2, rows*(20+2)+2))                             //*NRGBA (image.Image interface)
+	im := image.NewRGBA(image.Rect(0, 0, cols*(board_width+2)+2, rows*(board_height+2)+2))                             //*NRGBA (image.Image interface)
 	draw.Draw(im, im.Bounds(), image.NewUniform(color.RGBA{98, 166, 255, 255}), image.ZP, draw.Src) // color.Transparent
 	return &ImageSet{
 		im:   im,
@@ -422,8 +456,8 @@ func (i *ImageSet) save(f string) {
 }
 
 func (i *ImageSet) DrawStats(row, col int, bs *BoardStats) {
-	offset_x := col*(20+2) + 2
-	offset_y := row*(20+2) + 2
+	offset_x := col*(board_width+2) + 2
+	offset_y := row*(board_height+2) + 2
 
 	for x := 0; x < bs.w; x++ {
 		for y := 0; y < bs.h; y++ {
@@ -453,7 +487,7 @@ func (i *ImageSet) DrawStatsCRLF() {
 func main_verify_training_examples() {
 	var kaggle LifeProblemSet
 
-	problem_offset := 100
+	problem_offset := 300
 
 	id_list := []int{}
 	id_map := make(map[int]bool)
@@ -465,37 +499,70 @@ func main_verify_training_examples() {
 	//fmt.Println(kaggle.problem[107].start)
 	//fmt.Println(kaggle.problem[107].end)
 
-	image := NewImageSet(10, 11) // 10rows of 11 images, formatted 'appropriately'
+	image := NewImageSet(10, 11) // 10 rows of 11 images each, formatted 'appropriately'
 
 	for _, id := range id_list {
-		bs_start := NewBoardStats(20, 20)
+		bs_start := NewBoardStats(board_width, board_height)
 		kaggle.problem[id].start.AddToStats(bs_start)
 
-		bs_end := NewBoardStats(20, 20)
+		bs_end := NewBoardStats(board_width, board_height)
 		kaggle.problem[id].end.AddToStats(bs_end)
 
 		//image.DrawStats(r,c, bs)
 		image.DrawStatsNext(bs_start)
 		image.DrawStats(image.row_current, image.cols-1, bs_end)
 
-		l := NewBoardIterator(20, 20)
-		// NB: This destroys 'current' :: should have a copy function
-		l.current = kaggle.problem[id].start
+		l := NewBoardIterator(board_width, board_height)
+		l.current.CopyFrom(kaggle.problem[id].start)
 
-		for i := 0; i<kaggle.problem[id].steps; i++ {
+		for i := 0; i < kaggle.problem[id].steps; i++ {
 			l.Iterate(1) // Just 1 step per image for now
 
-			bs_now := NewBoardStats(20, 20)
+			bs_now := NewBoardStats(board_width, board_height)
 			l.current.AddToStats(bs_now)
 			image.DrawStatsNext(bs_now)
+		}
+		image.DrawStatsNext(bs_end) // For ease of comparison..
+	
+		if mismatch := kaggle.problem[id].end.CompareTo(l.current); mismatch>0 {
+			fmt.Printf("Training Example[%d] FAIL - by %d\n", id, mismatch)
 		}
 
 		image.DrawStatsCRLF()
 	}
 
-	image.save("images/main.png")
+	image.save("images/train.png")
+}
+
+func main_visualize_density() {
+	image := NewImageSet(10, 11) // 10 rows of 11 images each, formatted 'appropriately'
+
+	for pct:=float32(0.1); pct<0.99; pct+=0.1 {
+		var bs []*BoardStats
+		for j:=0; j<10; j++ {
+			bs = append(bs, NewBoardStats(board_width, board_height))
+		}
+
+		for i:=0; i<1000; i++ {
+			l := NewBoardIterator(board_width, board_height)
+			l.current.UniformRandom(pct)
+			l.current.AddToStats(bs[0])
+			for j:=1; j<len(bs); j++ {
+				l.Iterate(1)
+				l.current.AddToStats(bs[j])
+			}
+		}
+		for j:=0; j<len(bs); j++ {
+			image.DrawStatsNext(bs[j])
+		}
+		image.DrawStatsCRLF()
+	}
+
+	image.save("images/density.png")
 }
 
 func main() {
+	//main_timer()
 	main_verify_training_examples()
+	//main_visualize_density()
 }
