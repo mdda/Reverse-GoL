@@ -451,8 +451,7 @@ func (i *ImageSet) DrawStatsCRLF() {
 }
 
 
-func main() {
-	//main_loader()
+func main_verify_training_examples() {
 	var kaggle LifeProblemSet
 	
 	problem_offset := 100
@@ -496,4 +495,8 @@ func main() {
 	}
 	
 	image.save("images/main.png")
+}
+
+func main() {
+	main_verify_training_examples()
 }
