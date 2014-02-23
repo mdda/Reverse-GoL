@@ -6,13 +6,13 @@ package main
 
 import (
 	"bytes"
-	"fmt"
-	"math/rand"
-	"time"
 	"encoding/csv"
+	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"strconv"
+	"time"
 )
 
 import (
@@ -21,7 +21,6 @@ import (
 	"image/draw"
 	"image/png"
 )
-
 
 // Board represents a two-dimensional field of cells.
 type Board_BoolPacked struct {
@@ -81,14 +80,14 @@ func (f *Board_BoolPacked) LoadString(s string) {
 func (f *Board_BoolPacked) LoadArray(csv_strings []string) {
 	x := 0
 	y := 0
-	
+
 	for _, v := range csv_strings[:] {
 		if v == "1" {
 			f.Set(x, y, true)
 			//fmt.Print("*")
 		}
 		x++
-		if x>=f.w {
+		if x >= f.w {
 			x = 0
 			y++
 		}
@@ -197,7 +196,7 @@ func (f *Board_BoolPacked) String() string {
 	for y := 0 - outer; y < f.h+outer; y++ {
 		for x := 0 - outer; x < f.w+outer; x++ {
 			b := byte('-')
-			if x<0 || x>=f.w || y<0 || y>=f.h {
+			if x < 0 || x >= f.w || y < 0 || y >= f.h {
 				b = '0'
 			}
 			if f.isSet(x, y) {
@@ -222,7 +221,7 @@ func (f *Board_BoolPacked) AddToStats(bs *BoardStats) {
 }
 
 type BoardStats struct {
-	freq    [][]int
+	freq  [][]int
 	w, h  int
 	count int
 }
@@ -234,7 +233,7 @@ func NewBoardStats(w, h int) *BoardStats {
 		freq[i] = make([]int, w)
 	}
 	//fmt.Print("CreatedBoardStats\n")
-	return &BoardStats{freq: freq, w: w, h: h, count:0}
+	return &BoardStats{freq: freq, w: w, h: h, count: 0}
 }
 
 // BoardIterator stores the state of a round of Conway's Game of Life.
@@ -254,7 +253,7 @@ func NewBoardIterator(w, h int) *BoardIterator {
 
 // Step advances the game by one instant, recomputing and updating all cells.
 func (bi *BoardIterator) Iterate(n int) {
-	for i:=0; i<n; i++ {
+	for i := 0; i < n; i++ {
 		bi.current.Iterate(bi.temp_internal_only)
 		// Now swap boards, to put the result in prime position
 		bi.current, bi.temp_internal_only = bi.temp_internal_only, bi.current
@@ -295,7 +294,7 @@ X-X
 		l.current.LoadString(glider[1:])
 
 		l.Iterate(65)
-		
+
 		if iter == 0 {
 			fmt.Print(l.current, "\n")
 		}
@@ -321,9 +320,9 @@ func main_loader() {
 //}
 
 type LifeProblem struct {
-	id int
+	id         int
 	start, end *Board_BoolPacked
-	steps int
+	steps      int
 	// Finished, iterations, confidence, etc
 }
 
@@ -331,87 +330,88 @@ type LifeProblemSet struct {
 	problem map[int]LifeProblem
 }
 
-func (s *LifeProblemSet) load_csv(f string, is_training bool, ids map[int]bool) {
+func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
 	if s.problem == nil {
 		s.problem = make(map[int]LifeProblem)
 	}
-    file, err := os.Open(f)
-    if err != nil {
-        fmt.Println("Error:", err)
-        return
-    }
-    defer file.Close()
-    reader := csv.NewReader(file)
-    
-    // First line different
-    header, err := reader.Read()
-    if(header[0] != "id") {
+	file, err := os.Open(f)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer file.Close()
+	reader := csv.NewReader(file)
+
+	// First line different
+	header, err := reader.Read()
+	if header[0] != "id" {
 		fmt.Println("Bad Header", err)
 		return
 	}
 	//fmt.Println("Header Start: ", header[2:402])
 	//fmt.Println("Header Stop : ", header[402:802])
-	
-	id_max:=0
-	for k,_ := range ids {
-		if id_max<k {
-			id_max=k
+
+	id_max := 0
+	id_map := make(map[int]bool)
+	for _, id := range id_list {
+		id_map[id] = true
+		if id_max < id {
+			id_max = id
 		}
 	}
-	
-    for {
-        record, err := reader.Read()
-        if err == io.EOF {
-            break
-        } else if err != nil {
-            fmt.Println("Error:", err)
-            return
-        }
-		
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
 		// record is []string
-		id,_    := strconv.Atoi(record[0])
-		if ids[id] {
+		id, _ := strconv.Atoi(record[0])
+		if id_map[id] {
 			//fmt.Println(record) // record has the type []string
-			steps,_ := strconv.Atoi(record[1])
-			
-			start := NewBoard_BoolPacked(20,20)
-			end := NewBoard_BoolPacked(20,20)
+			steps, _ := strconv.Atoi(record[1])
+
+			start := NewBoard_BoolPacked(20, 20)
+			end := NewBoard_BoolPacked(20, 20)
 			if is_training {
 				start.LoadArray(record[2:402])
 				end.LoadArray(record[402:802])
 			} else {
 				end.LoadArray(record[2:402])
 			}
-			
-			s.problem[id]=LifeProblem{
-				id:id,
-				start:start,
-				end:end,
-				steps:steps,
+
+			s.problem[id] = LifeProblem{
+				id:    id,
+				start: start,
+				end:   end,
+				steps: steps,
 			}
 			fmt.Printf("Loaded problem[%d] : steps=%d\n", id, steps)
 			//fmt.Print(s.problem[id].start)
 		}
-		if(id>id_max) {
+		if id > id_max {
 			return // fact-of-life : ids are ascending order
 		}
 	}
 }
 
 type ImageSet struct {
-	im *image.RGBA
-	rows, cols int
+	im                       *image.RGBA
+	rows, cols               int
 	row_current, col_current int
 }
 
 func NewImageSet(rows, cols int) *ImageSet {
-	im := image.NewRGBA(image.Rect(0, 0, cols*(20+2)+2, rows*(20+2)+2 )) //*NRGBA (image.Image interface)
-	// fill m in transparent
-	draw.Draw(im, im.Bounds(), image.NewUniform(color.RGBA{98,166,255,255}), image.ZP, draw.Src)  // color.Transparent
-	return &ImageSet {
-		im:im,
-		rows:rows, cols:cols,
-		row_current:0, col_current:0,
+	im := image.NewRGBA(image.Rect(0, 0, cols*(20+2)+2, rows*(20+2)+2))                             //*NRGBA (image.Image interface)
+	draw.Draw(im, im.Bounds(), image.NewUniform(color.RGBA{98, 166, 255, 255}), image.ZP, draw.Src) // color.Transparent
+	return &ImageSet{
+		im:   im,
+		rows: rows, cols: cols,
+		row_current: 0, col_current: 0,
 	}
 }
 
@@ -422,13 +422,13 @@ func (i *ImageSet) save(f string) {
 }
 
 func (i *ImageSet) DrawStats(row, col int, bs *BoardStats) {
-	offset_x := col*(20+2)+2
-	offset_y := row*(20+2)+2
-	
-	for x:=0; x<bs.w; x++ {
-		for y:=0; y<bs.h; y++ {
+	offset_x := col*(20+2) + 2
+	offset_y := row*(20+2) + 2
+
+	for x := 0; x < bs.w; x++ {
+		for y := 0; y < bs.h; y++ {
 			g := uint8(bs.freq[x][y] * 255 / bs.count)
-			i.im.Set(offset_x + x, offset_y + y, color.Gray{g}) 
+			i.im.Set(offset_x+x, offset_y+y, color.Gray{g})
 		}
 	}
 }
@@ -436,64 +436,63 @@ func (i *ImageSet) DrawStats(row, col int, bs *BoardStats) {
 func (i *ImageSet) DrawStatsNext(bs *BoardStats) {
 	i.DrawStats(i.row_current, i.col_current, bs)
 	i.col_current++
-	if i.col_current>=i.cols {
+	if i.col_current >= i.cols {
 		i.DrawStatsCRLF()
 	}
 }
 
 func (i *ImageSet) DrawStatsCRLF() {
-	i.col_current=0
+	i.col_current = 0
 	i.row_current++
-	if i.row_current>=i.rows {
-		fmt.Print("New Beginning\n")
-		i.row_current=0
+	if i.row_current >= i.rows {
+		//fmt.Print("New Beginning\n")
+		i.row_current = 0
 	}
 }
 
-
 func main_verify_training_examples() {
 	var kaggle LifeProblemSet
-	
+
 	problem_offset := 100
-	
-	id_map := make(map[int]bool)
+
 	id_list := []int{}
-	for id:=problem_offset; id<problem_offset+10; id++ {
+	id_map := make(map[int]bool)
+	for id := problem_offset; id < problem_offset+10; id++ {
 		id_list = append(id_list, id)
-		id_map[id]=true
+		id_map[id] = true
 	}
-	kaggle.load_csv("data/train.csv", true, id_map)
+	kaggle.load_csv("data/train.csv", true, id_list)
 	//fmt.Println(kaggle.problem[107].start)
 	//fmt.Println(kaggle.problem[107].end)
-	
+
 	image := NewImageSet(10, 11) // 10rows of 11 images, formatted 'appropriately'
-	
-	for _,id := range id_list {
-		bs_start := NewBoardStats(20,20)
+
+	for _, id := range id_list {
+		bs_start := NewBoardStats(20, 20)
 		kaggle.problem[id].start.AddToStats(bs_start)
-		
-		bs_end := NewBoardStats(20,20)
+
+		bs_end := NewBoardStats(20, 20)
 		kaggle.problem[id].end.AddToStats(bs_end)
-		
+
 		//image.DrawStats(r,c, bs)
 		image.DrawStatsNext(bs_start)
 		image.DrawStats(image.row_current, image.cols-1, bs_end)
-		
+
 		l := NewBoardIterator(20, 20)
 		// NB: This destroys 'current' :: should have a copy function
 		l.current = kaggle.problem[id].start
-		
-		for i:=0; i< 0 + 1*kaggle.problem[id].steps; i++ {
+
+		for i := 0; i<kaggle.problem[id].steps; i++ {
 			l.Iterate(1) // Just 1 step per image for now
-			
-			bs_now := NewBoardStats(20,20)
+
+			bs_now := NewBoardStats(20, 20)
 			l.current.AddToStats(bs_now)
 			image.DrawStatsNext(bs_now)
 		}
-		
+
 		image.DrawStatsCRLF()
 	}
-	
+
 	image.save("images/main.png")
 }
 
