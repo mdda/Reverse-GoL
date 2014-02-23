@@ -251,10 +251,111 @@ func (f *Board_BoolPacked) AddToStats(bs *BoardStats) {
 	bs.count++
 }
 
+
+func (f *Board_BoolPacked) MutateFlipBits(count int) {
+	for c:=0; c<count; c++ {
+		// Pick two random locations, and copy the bit from one to the other
+		src_x, src_y := rand.Intn(f.w), rand.Intn(f.h)
+		dst_x, dst_y := rand.Intn(f.w), rand.Intn(f.h)
+		
+		f.Set(dst_x, dst_y, f.isSet(src_x, src_y))
+	}
+}
+
+func CoordWithinRadius(origin int, dim int, radius int) int {
+	q :=-1
+	for ; (q<0 || q>=dim); q = origin+rand.Intn(radius*2+1)-radius {
+	}
+	return q
+}
+
+func (f *Board_BoolPacked) MutateRadiusBits_SwitchARoo(another_mutation_pct, radius int) {
+	// Pick a random location
+	src_x, src_y := rand.Intn(f.w), rand.Intn(f.h)
+	for {
+		if rand.Intn(100)>another_mutation_pct {
+			break
+		}
+			
+		// and another within L1(radius) of it
+		dst_x := CoordWithinRadius(src_x, f.w, radius)
+		dst_y := CoordWithinRadius(src_y, f.h, radius)
+
+		src_isSet := f.isSet(src_x, src_y)
+		// Switch-a-roo
+		f.Set(src_x, src_y, f.isSet(dst_x, dst_y))
+		f.Set(dst_x, dst_y, src_isSet)
+	}
+}
+
+func (f *Board_BoolPacked) MutateRadiusBits(another_mutation_pct, radius int) {
+	// Pick a random location
+	src_x, src_y := rand.Intn(f.w), rand.Intn(f.h)
+	for {
+		// Pick an L1 radius
+		r_up := rand.Intn(radius)
+		r_down := rand.Intn(radius)
+		for x:=src_x-r_down; x<=src_x+r_up; x++ {
+			for y:=src_y-r_down; y<=src_y+r_up; y++ {
+				if 0<=x && x<f.w && 0<=y && y<f.h {
+					f.Set(x, y, f.isSet(x, y) != true)
+				}
+			}
+		}
+		if rand.Intn(100)>another_mutation_pct {
+			break
+		}
+	}
+}
+
+func (offspring *Board_BoolPacked) CrossoverFrom_Horizontal(p1, p2 *Board_BoolPacked) { // OPTIMIZED FOR BoolPacked
+	offspring.s = make([]int32, board_height+2)
+	cross := rand.Intn(board_height+2)
+	for y := 0; y<board_height+2; y++ {
+		if false && y<cross {
+			offspring.s[y] = p1.s[y]
+		} else {
+			offspring.s[y] = p2.s[y]
+		}
+	}
+/*
+	// offspring.CopyFrom(p1)
+	if(rand.Intn(100)>50) {
+		// Horizontal dividing line
+		
+	} else {
+		// Vertical dividing line
+	}
+*/
+}
+
+func (offspring *Board_BoolPacked) CrossoverFrom(p1, p2 *Board_BoolPacked) {
+	offspring.CopyFrom(p1) // Grab p1 ASAP
+	
+	// Pick a random location
+	src_x, src_y := rand.Intn(offspring.w), rand.Intn(offspring.h)
+	
+	radius := 5
+	// Pick an L1 radius
+	r_up := rand.Intn(radius)
+	r_down := rand.Intn(radius)
+	
+	// Copy the rectangular blog from p2
+	for x:=src_x-r_down; x<=src_x+r_up; x++ {
+		for y:=src_y-r_down; y<=src_y+r_up; y++ {
+			if 0<=x && x<offspring.w && 0<=y && y<offspring.h {
+				offspring.Set(x, y, p2.isSet(x, y))
+			}
+		}
+	}
+}
+
+
 type BoardStats struct {
 	freq  [][]int
 	w, h  int
 	count int
+	mismatch_amount int
 }
 
 // NewField_BoolArray returns an empty field of the specified width and height.
@@ -264,7 +365,11 @@ func NewBoardStats(w, h int) *BoardStats {
 		freq[i] = make([]int, w)
 	}
 	//fmt.Print("CreatedBoardStats\n")
-	return &BoardStats{freq: freq, w: w, h: h, count: 0}
+	return &BoardStats{freq: freq, w: w, h: h, count: 0, mismatch_amount:0}
+}
+
+func (bs *BoardStats) MisMatchBy(mismatch int) {
+	bs.mismatch_amount = mismatch
 }
 
 // BoardIterator stores the state of a round of Conway's Game of Life.
@@ -458,8 +563,16 @@ func (i *ImageSet) DrawStats(row, col int, bs *BoardStats) {
 
 	for x := 0; x < bs.w; x++ {
 		for y := 0; y < bs.h; y++ {
-			g := uint8(bs.freq[x][y] * 255 / bs.count)
-			i.im.Set(offset_x+x, offset_y+y, color.Gray{g})
+			g := bs.freq[x][y] * 255 / bs.count
+			if bs.mismatch_amount>0 {
+				pct := 100 - bs.mismatch_amount * 50 / 100
+				if pct<0 {
+					pct=0
+				}
+				//fmt.Printf("Mismatch pct=%d\n", pct)
+				g = (g*pct) /100
+			}
+			i.im.Set(offset_x+x, offset_y+y, color.Gray{uint8(g)})
 		}
 	}
 }
@@ -556,12 +669,184 @@ func main_visualize_density() {
 	image.save("images/density.png")
 }
 
+type Individual struct {
+	start *Board_BoolPacked
+	//end *Board_BoolPacked
+	fitness int  // higher is better, no particular scale
+}
+
+/*
+func IndividualMutationGenerator(amount int) func f(i *Individual) *Individual{
+	return func(i *Individual) *Individual{
+		
+	}
+}
+*/
+
+type Population struct {
+	individual []*Individual
+	
+	pressure_pct int
+	mutation_radius int
+}
+
+func NewPopulation(size int, radius int) *Population {
+	//fmt.Printf("NewPopulation(size=%d)\n", size)
+	ind := make([]*Individual, size)
+	for i:=0; i<size; i++ {
+		ind[i] = &Individual{ start:NewBoard_BoolPacked(board_width, board_height), fitness:0 }
+	}
+	//fmt.Printf("NewPopulation(size=%d) inited\n", size)
+	return &Population{
+		individual:ind,
+		
+		pressure_pct:90,
+		
+		mutation_radius:radius,
+	}
+}
+
+func (p *Population) PickIndividualWithPressure() *Individual {  // pressure_pct is in (50..100)
+	// Pick two individuals at random from population
+	i_1 := p.individual[rand.Intn(len(p.individual))]
+	i_2 := p.individual[rand.Intn(len(p.individual))]
+	
+	if i_1.fitness < i_2.fitness {
+		i_1,i_2 = i_2,i_1 // Switch them so that i_1 is the fitter (higher is better) of the two
+	}
+	
+	// if pct< a threshold, pick the better one
+	i_chosen := i_1
+	if rand.Intn(100) > p.pressure_pct { // i.e. only sometimes do the opposite
+		i_chosen = i_2
+	}
+	return i_chosen
+}
+
+func (next *Population) GenerationAfter(prev *Population, crossover_pct int, mutation_pct int) { // crossover_pct is in (0,100)
+	// Fill in every slot
+	for c:=0; c<len(next.individual); c++ {
+		//fmt.Printf("Fitness to choose : {%d,%d} -> %d\n", i_1.fitness, i_2.fitness, i_chosen.fitness)
+		
+		if rand.Intn(100) < -crossover_pct {
+			// Do a 'crossover copy' from two individuals in previous population to this one
+			parent_1 := prev.PickIndividualWithPressure()
+			parent_2 := prev.PickIndividualWithPressure()
+			next.individual[c].start.CrossoverFrom(parent_1.start, parent_2.start)
+		} else {
+			// Do a 'mutation copy' from one individual in previous population to this one
+			i_chosen := prev.PickIndividualWithPressure()
+			next.individual[c].start.CopyFrom(i_chosen.start)
+			if rand.Intn(100) < mutation_pct {
+				next.individual[c].start.MutateRadiusBits(20, next.mutation_radius) // % do additional mutation, radius of action
+			}
+		}
+
+		next.individual[c].fitness = 0
+	}
+}
+
+/*
+func (p *Population) MutateIndividuals(another_mutation_pct int, radius int) {  // % do additional mutation, radius of action
+	for c:=0; c<len(p.individual); c++ {
+		//p.individual[c].start.MutateFlipBits(rand.Intn(mutation_size))
+		p.individual[c].start.MutateRadiusBits(another_mutation_pct, radius)
+	}
+}
+*/
+
 func main_population_score() {
-	//image := NewImageSet(10, 11) // 10 rows of 11 images each, formatted 'appropriately'
+	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
+	
+	var kaggle LifeProblemSet
+	id := 107
+	kaggle.load_csv("data/train.csv", true, []int{id}) 
+
+	problem := kaggle.problem[id]
+
+	// This is the TRUE starting place : for reference
+	bs_start := NewBoardStats(board_width, board_height)
+	problem.start.AddToStats(bs_start)
+
+	// This is the TRUE ending place : for reference
+	bs_end := NewBoardStats(board_width, board_height)
+	problem.end.AddToStats(bs_end)
+
+	// Create a population of potential boards
+	pop_size := 5
+	p_prev := NewPopulation(pop_size, problem.steps)
+	for i:=0; i<pop_size; i++ {
+		// Create a candidate starting point
+		// NB:  We can only work from the problem.end
+		p_prev.individual[i].start.CopyFrom(problem.end)
+		//p_prev.individual[i].start.UniformRandom(0.4)
+	}
+	
+	p_next := NewPopulation(pop_size, problem.steps)
+
+	l := NewBoardIterator(board_width, board_height)
+	
+	iter_max := 10
+	for iter:=0; iter<iter_max; iter++ {
+		disp_row := (0 == (iter) % (iter_max/10))
+		
+		if disp_row {
+			// for ease of comparison
+			image.DrawStatsNext(bs_start)
+		}
+		
+		p_next.GenerationAfter(p_prev, 50, 50) // cross-over%age, mutation%age
+		
+		for i:=0; i<pop_size; i++ {
+			l.current.CopyFrom(p_next.individual[i].start)
+			
+			//l.Iterate(5)
+			
+			if i<5 && disp_row {
+				bs_trial := NewBoardStats(board_width, board_height)
+				l.current.AddToStats(bs_trial)
+				
+				mismatch_from_true_start := problem.start.CompareTo(l.current)
+				fmt.Printf("\n%3d.%2d : Mismatch from true start = %d\n", iter, i, mismatch_from_true_start)
+				bs_trial.MisMatchBy(mismatch_from_true_start)
+			
+				image.DrawStatsNext(bs_trial)
+			}
+			
+			l.Iterate(problem.steps)
+			
+			mismatch_from_true_end := problem.end.CompareTo(l.current)
+			p_next.individual[i].fitness = -mismatch_from_true_end
+			
+			if i<5 && disp_row {
+				bs_result := NewBoardStats(board_width, board_height)
+				l.current.AddToStats(bs_result)
+				
+				fmt.Printf("%3d.%2d : Mismatch from true end   = %d\n", iter, i, mismatch_from_true_end)
+				bs_result.MisMatchBy(mismatch_from_true_end)
+				
+				image.DrawStatsNext(bs_result)
+			}
+		}
+		
+		if disp_row {
+			//image.DrawStatsNext(bs_end) // For ease of comparison..
+			image.DrawStats(image.row_current, image.cols-1, bs_end)
+			
+			image.DrawStatsCRLF()
+		}
+		
+		p_next, p_prev = p_prev, p_next // Switcheroo to advance to next population
+	}
+
+	//image.DrawStats(image.row_current, image.cols-1, bs_end)
+	
+	image.save("images/score_mutated.png")
 }
 
 func main() {
 	//main_timer()
-	main_verify_training_examples()
+	//main_verify_training_examples()
 	//main_visualize_density()
+	main_population_score()
 }
