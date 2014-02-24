@@ -129,7 +129,7 @@ func (f *Board_BoolPacked) Iterate(next *Board_BoolPacked) { // OPTIMIZED FOR Bo
 	next.s[board_height+1] = 0
 }
 
-func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked) int { // OPTIMIZED FOR BoolPacked
+func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked, diff *Board_BoolPacked) int { // OPTIMIZED FOR BoolPacked
 	r := 0
 	match := int32(0)
 	lowest_byte := int32(0xff)
@@ -140,9 +140,13 @@ func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked) int { // OP
 					 count_bits_array[(match>>8) & lowest_byte] + 
 					 count_bits_array[(match>>16) & lowest_byte])
 		}
+		if diff != nil {
+			diff.s[y]=match
+		}
 	}
 	return r
 }
+
 
 
 /****************************************************************************************/
@@ -307,6 +311,58 @@ func (f *Board_BoolPacked) MutateRadiusBits(another_mutation_pct, radius int) {
 		}
 	}
 }
+
+func (f *Board_BoolPacked) MutateMask(mask *Board_BoolPacked, another_mutation_pct, radius int) { // OPTIMIZED FOR BoolPacked
+	// This isn't really a uniform picker amongst mask bits, but it makes an effort to be fast...
+	for {
+		// Pick a random row, and find the first line there (or after) that has a non-zero in it
+		y := rand.Intn(board_height)
+		for cnt := board_height; (mask.s[y+1]==0) && cnt>0; cnt-- {
+			//fmt.Printf("MutateMask moving to next line %2d (count=%2d)\n", y, cnt)
+			y++
+			if y>=board_height {
+				//fmt.Printf("MutateMask wraparound after line %2d\n", y)
+				y=0
+			}
+		}
+		mask_row := mask.s[y+1]
+		if mask_row==0 {
+			// We looped around : No mask>0 => No mask to be found.  i.e. no mutation to do
+			//fmt.Printf("MutateMask no diffs : Perfect! on line %d\n")
+			//fmt.Println(mask)
+			break
+		}
+		
+		// Pick a random column
+		x := rand.Intn(board_width)
+		for cnt := board_width; ((mask_row & (1<<uint(x+1)))==0) && cnt>0; cnt-- {
+			x++
+			if x>=board_width {
+				x=0
+			}
+		}
+		
+		// Have found an x,y
+		if mask.isSet(x,y) != true {
+			fmt.Printf("MutateMask bit-twiddle failure %22b @ %2d=%22b %d\n", mask_row, x+1)
+			return
+		}
+		
+		//f.Set(x,y, f.isSet(x,y)==false) // Flip the bit which corresponds to the diff
+		
+		x_offset := CoordWithinRadius(x, board_width, radius)
+		y_offset := CoordWithinRadius(y, board_height, radius)
+		f.Set(x_offset,y_offset, f.isSet(x_offset,y_offset)==false) // Flip the bit which corresponds to the diff+/-a radius distance
+		
+		//fmt.Printf("MutateMask flip bit (%2d,%2d)\n", x,y)
+		if rand.Intn(100)>another_mutation_pct {
+			break
+		}
+		//fmt.Printf("MutateMask round again\n")
+	}
+}
+
+
 
 func (offspring *Board_BoolPacked) CrossoverFrom_Horizontal(p1, p2 *Board_BoolPacked) { // OPTIMIZED FOR BoolPacked
 	offspring.s = make([]int32, board_height+2)
@@ -632,7 +688,7 @@ func main_verify_training_examples() {
 		}
 		image.DrawStatsNext(bs_end) // For ease of comparison..
 	
-		if mismatch := kaggle.problem[id].end.CompareTo(l.current); mismatch>0 {
+		if mismatch := kaggle.problem[id].end.CompareTo(l.current, nil); mismatch>0 {
 			fmt.Printf("Training Example[%d] FAIL - by %d\n", id, mismatch)
 		}
 
@@ -671,7 +727,7 @@ func main_visualize_density() {
 
 type Individual struct {
 	start *Board_BoolPacked
-	//end *Board_BoolPacked
+	diff  *Board_BoolPacked
 	fitness int  // higher is better, no particular scale
 }
 
@@ -699,26 +755,33 @@ func NewPopulation(size int, radius int) *Population {
 	//fmt.Printf("NewPopulation(size=%d)\n", size)
 	ind := make([]*Individual, size)
 	for i:=0; i<size; i++ {
-		ind[i] = &Individual{ start:NewBoard_BoolPacked(board_width, board_height), fitness:0 }
+		ind[i] = &Individual{ 
+			                  start:NewBoard_BoolPacked(board_width, board_height), 
+			                  diff: NewBoard_BoolPacked(board_width, board_height), 
+		                      fitness:0,
+		                    }
 	}
 	//fmt.Printf("NewPopulation(size=%d) inited\n", size)
 	return &Population{
 		individual:ind,
 		
-		pressure_pct:90,
+		pressure_pct:1*70+0*100,  // pressure_pct is in (50..100) = Prob(Chose better of two random individuals)
 		
-		mutation_pct:30,
+		mutation_pct:1*30+0*100,
+		mutation_loop_pct:70,
 		mutation_radius:radius,
-		mutation_loop_pct:20,
 		
-		crossover_pct:30*0,
+		crossover_pct:30*1,
 	}
 }
 
-func (p *Population) PickIndividualWithPressure() *Individual {  // pressure_pct is in (50..100)
+func (p *Population) PickIndividualWithPressure() *Individual {  
 	// Pick two individuals at random from population
-	i_1 := p.individual[rand.Intn(len(p.individual))]
-	i_2 := p.individual[rand.Intn(len(p.individual))]
+	i_1_pos := rand.Intn(len(p.individual))
+	i_1 := p.individual[i_1_pos]
+	
+	i_2_pos := rand.Intn(len(p.individual))
+	i_2 := p.individual[i_2_pos]
 	
 	if i_1.fitness < i_2.fitness {
 		i_1,i_2 = i_2,i_1 // Switch them so that i_1 is the fitter (higher is better) of the two
@@ -729,37 +792,40 @@ func (p *Population) PickIndividualWithPressure() *Individual {  // pressure_pct
 	if rand.Intn(100) > p.pressure_pct { // i.e. only sometimes do the opposite
 		i_chosen = i_2
 	}
+	//fmt.Printf("Individuals {%d:%d} Fitnesses : {%d:%d} -> %d\n", i_1_pos, i_2_pos, i_1.fitness, i_2.fitness, i_chosen.fitness)
+	
 	return i_chosen
 }
 
 func (p *Population) GenerationAfter(prev *Population) {
 	// Fill in every slot
-	for c:=0; c<len(p.individual); c++ {
-		//fmt.Printf("Fitness to choose : {%d,%d} -> %d\n", i_1.fitness, i_2.fitness, i_chosen.fitness)
-		
+	for _, individual := range p.individual {
 		choser := rand.Intn(100)
 		if 0<=choser && choser < p.crossover_pct { 
 			// Do a 'crossover copy' from two individuals in previous population to this one
 			parent_1 := prev.PickIndividualWithPressure()
 			parent_2 := prev.PickIndividualWithPressure()
-			p.individual[c].start.CrossoverFrom(parent_1.start, parent_2.start)
+			individual.start.CrossoverFrom(parent_1.start, parent_2.start)
 		} else { // Do a simple copy, with the possibility of mutation (below)
 			i_chosen := prev.PickIndividualWithPressure()
-			p.individual[c].start.CopyFrom(i_chosen.start)
+			individual.start.CopyFrom(i_chosen.start)
 			if p.crossover_pct<=choser && choser < (p.crossover_pct + p.mutation_pct) {
-				p.individual[c].start.MutateRadiusBits(p.mutation_loop_pct, p.mutation_radius) // % do additional mutation, radius of action
+				//individual.start.MutateRadiusBits(p.mutation_loop_pct, p.mutation_radius) // % do additional mutation, radius of action
+				
+				// Use the diff mask calculated for the chosen individual
+				individual.start.MutateMask(i_chosen.diff, p.mutation_loop_pct, p.mutation_radius)
 			}
 		}
 
-		p.individual[c].fitness = 0
+		individual.fitness = 0
 	}
 }
 
 /*
 func (p *Population) MutateIndividuals(another_mutation_pct int, radius int) {  // % do additional mutation, radius of action
-	for c:=0; c<len(p.individual); c++ {
-		//p.individual[c].start.MutateFlipBits(rand.Intn(mutation_size))
-		p.individual[c].start.MutateRadiusBits(another_mutation_pct, radius)
+	for c, individual := range p.individual {
+		//individual.start.MutateFlipBits(rand.Intn(mutation_size))
+		individual.start.MutateRadiusBits(another_mutation_pct, radius)
 	}
 }
 */
@@ -768,7 +834,7 @@ func main_population_score() {
 	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
 	
 	var kaggle LifeProblemSet
-	id := 107
+	id := 100
 	kaggle.load_csv("data/train.csv", true, []int{id}) 
 
 	problem := kaggle.problem[id]
@@ -782,20 +848,20 @@ func main_population_score() {
 	problem.end.AddToStats(bs_end)
 
 	// Create a population of potential boards
-	pop_size := 5
+	pop_size := 1000
 	pop := NewPopulation(pop_size, problem.steps)
 	for i:=0; i<pop_size; i++ {
 		// Create a candidate starting point
 		// NB:  We can only work from the problem.end
 		pop.individual[i].start.CopyFrom(problem.end)
-		//pop.individual[i].start.UniformRandom(0.4)
+		//pop.individual[i].start.UniformRandom(0.32)
 	}
 	
 	p_temp := NewPopulation(pop_size, problem.steps)
 
 	l := NewBoardIterator(board_width, board_height)
 	
-	iter_max := 10
+	iter_max := 1000
 	for iter:=0; iter<iter_max; iter++ {
 		disp_row := (0 == (iter) % (iter_max/10))
 		
@@ -811,12 +877,16 @@ func main_population_score() {
 			
 			//l.Iterate(5)
 			
+			mismatch_from_true_start:=999
 			if i<5 && disp_row {
+				diff     := NewBoard_BoolPacked(board_width, board_height)
+				mismatch_from_true_start = problem.start.CompareTo(l.current, diff)
+				
 				bs_trial := NewBoardStats(board_width, board_height)
 				l.current.AddToStats(bs_trial)
+				//diff.AddToStats(bs_trial)
 				
-				mismatch_from_true_start := problem.start.CompareTo(l.current)
-				fmt.Printf("\n%3d.%2d : Mismatch from true start = %d\n", iter, i, mismatch_from_true_start)
+				//fmt.Printf("\n%3d.%2d : Mismatch from true start = %d\n", iter, i, mismatch_from_true_start)
 				bs_trial.MisMatchBy(mismatch_from_true_start)
 			
 				image.DrawStatsNext(bs_trial)
@@ -824,14 +894,16 @@ func main_population_score() {
 			
 			l.Iterate(problem.steps)
 			
-			mismatch_from_true_end := problem.end.CompareTo(l.current)
+			// This is 'allowed' since we know the end result, and can store the diff
+			mismatch_from_true_end := problem.end.CompareTo(l.current, individual.diff)
 			individual.fitness = -mismatch_from_true_end
 			
 			if i<5 && disp_row {
 				bs_result := NewBoardStats(board_width, board_height)
-				l.current.AddToStats(bs_result)
+				//l.current.AddToStats(bs_result)
+				individual.diff.AddToStats(bs_result)
 				
-				fmt.Printf("%3d.%2d : Mismatch from true end   = %d\n", iter, i, mismatch_from_true_end)
+				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end)
 				bs_result.MisMatchBy(mismatch_from_true_end)
 				
 				image.DrawStatsNext(bs_result)
