@@ -687,7 +687,12 @@ type Population struct {
 	individual []*Individual
 	
 	pressure_pct int
+	
+	mutation_pct int // (0..100)
 	mutation_radius int
+	mutation_loop_pct int
+
+	crossover_pct int // (0..100)
 }
 
 func NewPopulation(size int, radius int) *Population {
@@ -702,7 +707,11 @@ func NewPopulation(size int, radius int) *Population {
 		
 		pressure_pct:90,
 		
+		mutation_pct:30,
 		mutation_radius:radius,
+		mutation_loop_pct:20,
+		
+		crossover_pct:30*0,
 	}
 }
 
@@ -723,26 +732,26 @@ func (p *Population) PickIndividualWithPressure() *Individual {  // pressure_pct
 	return i_chosen
 }
 
-func (next *Population) GenerationAfter(prev *Population, crossover_pct int, mutation_pct int) { // crossover_pct is in (0,100)
+func (p *Population) GenerationAfter(prev *Population) {
 	// Fill in every slot
-	for c:=0; c<len(next.individual); c++ {
+	for c:=0; c<len(p.individual); c++ {
 		//fmt.Printf("Fitness to choose : {%d,%d} -> %d\n", i_1.fitness, i_2.fitness, i_chosen.fitness)
 		
-		if rand.Intn(100) < -crossover_pct {
+		choser := rand.Intn(100)
+		if 0<=choser && choser < p.crossover_pct { 
 			// Do a 'crossover copy' from two individuals in previous population to this one
 			parent_1 := prev.PickIndividualWithPressure()
 			parent_2 := prev.PickIndividualWithPressure()
-			next.individual[c].start.CrossoverFrom(parent_1.start, parent_2.start)
-		} else {
-			// Do a 'mutation copy' from one individual in previous population to this one
+			p.individual[c].start.CrossoverFrom(parent_1.start, parent_2.start)
+		} else { // Do a simple copy, with the possibility of mutation (below)
 			i_chosen := prev.PickIndividualWithPressure()
-			next.individual[c].start.CopyFrom(i_chosen.start)
-			if rand.Intn(100) < mutation_pct {
-				next.individual[c].start.MutateRadiusBits(20, next.mutation_radius) // % do additional mutation, radius of action
+			p.individual[c].start.CopyFrom(i_chosen.start)
+			if p.crossover_pct<=choser && choser < (p.crossover_pct + p.mutation_pct) {
+				p.individual[c].start.MutateRadiusBits(p.mutation_loop_pct, p.mutation_radius) // % do additional mutation, radius of action
 			}
 		}
 
-		next.individual[c].fitness = 0
+		p.individual[c].fitness = 0
 	}
 }
 
@@ -774,15 +783,15 @@ func main_population_score() {
 
 	// Create a population of potential boards
 	pop_size := 5
-	p_prev := NewPopulation(pop_size, problem.steps)
+	pop := NewPopulation(pop_size, problem.steps)
 	for i:=0; i<pop_size; i++ {
 		// Create a candidate starting point
 		// NB:  We can only work from the problem.end
-		p_prev.individual[i].start.CopyFrom(problem.end)
-		//p_prev.individual[i].start.UniformRandom(0.4)
+		pop.individual[i].start.CopyFrom(problem.end)
+		//pop.individual[i].start.UniformRandom(0.4)
 	}
 	
-	p_next := NewPopulation(pop_size, problem.steps)
+	p_temp := NewPopulation(pop_size, problem.steps)
 
 	l := NewBoardIterator(board_width, board_height)
 	
@@ -795,10 +804,10 @@ func main_population_score() {
 			image.DrawStatsNext(bs_start)
 		}
 		
-		p_next.GenerationAfter(p_prev, 50, 50) // cross-over%age, mutation%age
-		
-		for i:=0; i<pop_size; i++ {
-			l.current.CopyFrom(p_next.individual[i].start)
+		// Evaluate fitness of every individual in pop
+		//for i:=0; i<pop_size; i++ {
+		for i, individual := range pop.individual {
+			l.current.CopyFrom(individual.start)
 			
 			//l.Iterate(5)
 			
@@ -816,7 +825,7 @@ func main_population_score() {
 			l.Iterate(problem.steps)
 			
 			mismatch_from_true_end := problem.end.CompareTo(l.current)
-			p_next.individual[i].fitness = -mismatch_from_true_end
+			individual.fitness = -mismatch_from_true_end
 			
 			if i<5 && disp_row {
 				bs_result := NewBoardStats(board_width, board_height)
@@ -836,7 +845,8 @@ func main_population_score() {
 			image.DrawStatsCRLF()
 		}
 		
-		p_next, p_prev = p_prev, p_next // Switcheroo to advance to next population
+		p_temp.GenerationAfter(pop)
+		pop, p_temp = p_temp, pop // Switcheroo to advance to next population
 	}
 
 	//image.DrawStats(image.row_current, image.cols-1, bs_end)
