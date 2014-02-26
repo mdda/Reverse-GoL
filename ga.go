@@ -31,9 +31,11 @@ type Population struct {
 	mutation_loop_pct int
 
 	crossover_pct int // (0..100)
+	
+	lps *LifeProblemSet // This is reference to the basic LifeProblemSet we're working on (including the transition stats)
 }
 
-func NewPopulation(size int, radius int) *Population {
+func NewPopulation(size int, radius int, lps *LifeProblemSet) *Population {
 	//fmt.Printf("NewPopulation(size=%d)\n", size)
 	ind := make([]*Individual, size)
 	for i:=0; i<size; i++ {
@@ -54,6 +56,8 @@ func NewPopulation(size int, radius int) *Population {
 		mutation_radius:radius,
 		
 		crossover_pct:30*1,
+		
+		lps:lps,
 	}
 }
 
@@ -95,7 +99,20 @@ func (p *Population) GenerationAfter(prev *Population) {
 				//individual.start.MutateRadiusBits(p.mutation_loop_pct, p.mutation_radius) // % do additional mutation, radius of action
 				
 				// Use the diff mask calculated for the chosen individual
-				individual.start.MutateMask(i_chosen.diff, p.mutation_loop_pct, p.mutation_radius)
+				//individual.start.MutateMask(i_chosen.diff, p.mutation_loop_pct, p.mutation_radius)
+				
+				// For this individual, pick a position in the diff
+				x,y := i_chosen.diff.RandomBitPosition()
+				if x>=0 && y>=0 {
+					// Now, find that thing in the TransitionMap 
+					
+					// if found, then copy a random one of its starters into the new individual
+					
+					
+					//start_random
+					//individual.start.OverlayPatch(x,y, start_random)
+				}
+				
 			}
 		}
 

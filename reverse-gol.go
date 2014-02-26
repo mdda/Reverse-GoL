@@ -144,9 +144,11 @@ func main_population_score() {
 	
 	var kaggle LifeProblemSet
 	id := 104
-	kaggle.load_csv("data/train.csv", true, []int{id}) 
+	kaggle.load_csv("data/train.csv", true, []int{id})
 
 	problem := kaggle.problem[id]
+	
+	//tc := make(TransitionCollection)
 
 	// This is the TRUE starting place : for reference
 	bs_start := NewBoardStats(board_width, board_height)
@@ -158,7 +160,7 @@ func main_population_score() {
 
 	// Create a population of potential boards
 	pop_size := 1000
-	pop := NewPopulation(pop_size, problem.steps)
+	pop := NewPopulation(pop_size, problem.steps, &kaggle)
 	for i:=0; i<pop_size; i++ {
 		// Create a candidate starting point
 		// NB:  We can only work from the problem.end
@@ -166,11 +168,14 @@ func main_population_score() {
 		//pop.individual[i].start.UniformRandom(0.32)
 	}
 	
-	p_temp := NewPopulation(pop_size, problem.steps)
+	p_temp := NewPopulation(pop_size, problem.steps, &kaggle)
+	
+	// Now ensure that the transition_collection is valid for this step size
+	kaggle.load_transition_collection(problem.steps)
 
 	l := NewBoardIterator(board_width, board_height)
 	
-	iter_max := 5000
+	iter_max := 1000
 	for iter:=0; iter<iter_max; iter++ {
 		disp_row := (0 == (iter) % (iter_max/10))
 		
@@ -238,18 +243,37 @@ func main_population_score() {
 func main_create_stats(steps int) {
 	var transitions TransitionCollection
 	
-	transitions.training_csv_to_stats("data/train.csv", steps) 
+	transitions.TrainingCSV_to_stats("data/train.csv", steps) 
+	// No flipping stats (#steps, count_of_training_examples, unique end-point-patches_raw, unique end-point-patches_udlr ):
+	// 1  9866 648k 471k
+	// 2 10042 620k 450k
+	// 3  9947 589k 427k
+	// 4 10089 565k 410k
+	// 5  9956 534k 387k
 	
-	// Something...
-	// fmt.Sprintf("data/stats-%d.bin", steps)
+	transitions.SaveCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps))
+}
+
+func main_create_stats_all() {
+	for _,i := range( []int{1,2,3,4,5} ) {
+		main_create_stats(i)
+	}
+}
+
+
+func main_read_stats(steps int) {
+	var transitions TransitionCollection
 	
+	transitions.LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 }
 
 func main() {
 	//main_timer()
 	//main_verify_training_examples()
 	//main_visualize_density()
-	//main_population_score()
-	main_create_stats(4)
+	main_population_score()
+	//main_create_stats(1)
+	//main_create_stats_all()
+	//main_read_stats(1)
 }
 
