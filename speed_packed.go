@@ -134,22 +134,6 @@ func (attempt *Board_BoolPacked) CompareTo(target *Board_BoolPacked, diff *Board
 	return r
 }
 
-type Patch int
-
-func (f *Board_BoolPacked) MakePatch(x,y int) Patch {
-	var p Patch=0
-	for dy:=-2; dy<=+2; dy++ {
-		for dx:=-2; dx<=+2; dx++ {
-			p<<=1
-			if f.isSet_safe(x+dx,y+dy) {
-				p |= 1
-			}
-		}
-	}
-	return p
-}
-
-
 
 
 func (f *Board_BoolPacked) MutateFlipBits(count int) {
@@ -208,40 +192,49 @@ func (f *Board_BoolPacked) MutateRadiusBits(another_mutation_pct, radius int) {
 	}
 }
 
-func (f *Board_BoolPacked) MutateMask(mask *Board_BoolPacked, another_mutation_pct, radius int) { // OPTIMIZED FOR BoolPacked
+func (mask *Board_BoolPacked) RandomBitPosition() (int, int) { // OPTIMIZED FOR BoolPacked
 	// This isn't really a uniform picker amongst mask bits, but it makes an effort to be fast...
+	// Pick a random row, and find the first line there (or after) that has a non-zero in it
+	y := rand.Intn(board_height)
+	for cnt := board_height; (mask.s[y+1]==0) && cnt>0; cnt-- {
+		//fmt.Printf("MutateMask moving to next line %2d (count=%2d)\n", y, cnt)
+		y++
+		if y>=board_height {
+			//fmt.Printf("MutateMask wraparound after line %2d\n", y)
+			y=0
+		}
+	}
+	mask_row := mask.s[y+1]
+	if mask_row==0 {
+		// We looped around : No mask>0 => No mask to be found.  i.e. no mutation to do
+		//fmt.Printf("MutateMask no diffs : Perfect! on line %d\n")
+		//fmt.Println(mask)
+		return -1,-1
+	}
+	
+	// Pick a random column
+	x := rand.Intn(board_width)
+	for cnt := board_width; ((mask_row & (1<<uint(x+1)))==0) && cnt>0; cnt-- {
+		x++
+		if x>=board_width {
+			x=0
+		}
+	}
+	
+	// Have found an x,y
+	if mask.isSet(x,y) != true {
+		fmt.Printf("MutateMask bit-twiddle failure %22b @ %2d=%22b %d\n", mask_row, x+1)
+		return -999,-999
+	}
+	return x,y
+}
+
+func (f *Board_BoolPacked) MutateMask(mask *Board_BoolPacked, another_mutation_pct, radius int) { // OPTIMIZED FOR BoolPacked
 	for {
-		// Pick a random row, and find the first line there (or after) that has a non-zero in it
-		y := rand.Intn(board_height)
-		for cnt := board_height; (mask.s[y+1]==0) && cnt>0; cnt-- {
-			//fmt.Printf("MutateMask moving to next line %2d (count=%2d)\n", y, cnt)
-			y++
-			if y>=board_height {
-				//fmt.Printf("MutateMask wraparound after line %2d\n", y)
-				y=0
-			}
-		}
-		mask_row := mask.s[y+1]
-		if mask_row==0 {
-			// We looped around : No mask>0 => No mask to be found.  i.e. no mutation to do
-			//fmt.Printf("MutateMask no diffs : Perfect! on line %d\n")
-			//fmt.Println(mask)
+		x,y := mask.RandomBitPosition()
+		
+		if x<0 || y<0 {
 			break
-		}
-		
-		// Pick a random column
-		x := rand.Intn(board_width)
-		for cnt := board_width; ((mask_row & (1<<uint(x+1)))==0) && cnt>0; cnt-- {
-			x++
-			if x>=board_width {
-				x=0
-			}
-		}
-		
-		// Have found an x,y
-		if mask.isSet(x,y) != true {
-			fmt.Printf("MutateMask bit-twiddle failure %22b @ %2d=%22b %d\n", mask_row, x+1)
-			return
 		}
 		
 		//f.Set(x,y, f.isSet(x,y)==false) // Flip the bit which corresponds to the diff

@@ -32,6 +32,13 @@ func (f *Board_BoolPacked) isSet_safe(x, y int) bool {
 	return f.isSet(x,y)
 }
 
+func (f *Board_BoolPacked) Set_safe(x, y int, b bool) {
+	if x<0 || x>=board_width || y<0 || y>=board_height {
+		return 
+	}
+	f.Set(x,y,b)
+}
+
 
 // puts Board in a random state
 func (f *Board_BoolPacked) UniformRandom(pct float32) {
@@ -186,6 +193,8 @@ type LifeProblem struct {
 
 type LifeProblemSet struct {
 	problem map[int]LifeProblem
+	
+	transition_collection [5]TransitionCollection
 }
 
 func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
@@ -248,12 +257,19 @@ func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
 				end:   end,
 				steps: steps,
 			}
-			//fmt.Printf("Loaded problem[%d] : steps=%d\n", id, steps)
+			fmt.Printf("Loaded problem[%d] : steps=%d\n", id, steps)
 			//fmt.Print(s.problem[id].start)
 		}
 		if id > id_max {
 			return // fact-of-life : ids are ascending order, so can quit reading early
 		}
+	}
+}
+
+func (s *LifeProblemSet) load_transition_collection(steps int) {
+	// Only load if it's not already loaded
+	if s.transition_collection[steps].pre == nil {
+		s.transition_collection[steps].LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps))
 	}
 }
 
