@@ -194,7 +194,7 @@ type LifeProblem struct {
 type LifeProblemSet struct {
 	problem map[int]LifeProblem
 	
-	transition_collection [5]TransitionCollection
+	transition_collection []TransitionCollectionList
 }
 
 func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
@@ -268,8 +268,13 @@ func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
 
 func (s *LifeProblemSet) load_transition_collection(steps int) {
 	// Only load if it's not already loaded
-	if s.transition_collection[steps].pre == nil {
-		s.transition_collection[steps].LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps))
+	if s.transition_collection == nil {
+		s.transition_collection = make([]TransitionCollectionList, 10) // Much too long (no worries)
+	}
+	if len(s.transition_collection[steps].pre)==0 {
+		//fmt.Printf("******** STEPS OVERRIDE ************\n")
+		//s.transition_collection[steps].LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, 1)) 
+		s.transition_collection[steps].LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 	}
 }
 

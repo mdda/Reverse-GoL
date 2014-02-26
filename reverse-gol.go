@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"time"
+	"math/rand"
 )
 
 
@@ -67,7 +68,7 @@ func main_loader() {
 func main_verify_training_examples() {
 	var kaggle LifeProblemSet
 
-	problem_offset := 100
+	problem_offset := 50
 
 	id_list := []int{}
 	for id := problem_offset; id < problem_offset+10; id++ {
@@ -92,6 +93,8 @@ func main_verify_training_examples() {
 
 		l := NewBoardIterator(board_width, board_height)
 		l.current.CopyFrom(kaggle.problem[id].start)
+		
+		//fmt.Printf("Training Example[%d].steps=%d\n", id, steps)
 
 		for i := 0; i < kaggle.problem[id].steps; i++ {
 			l.Iterate(1) // Just 1 step per image for now
@@ -102,8 +105,8 @@ func main_verify_training_examples() {
 		}
 		image.DrawStatsNext(bs_end) // For ease of comparison..
 	
-		if mismatch := kaggle.problem[id].end.CompareTo(l.current, nil); mismatch>0 {
-			fmt.Printf("Training Example[%d] FAIL - by %d\n", id, mismatch)
+		if mismatch := l.current.CompareTo(kaggle.problem[id].end, nil); mismatch>0 {
+			fmt.Printf("** Training Example[%d] FAIL - by %d\n", id, mismatch)
 		}
 
 		image.DrawStatsCRLF()
@@ -143,13 +146,14 @@ func main_population_score() {
 	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
 	
 	var kaggle LifeProblemSet
-	id := 104
+	id := 54
 	kaggle.load_csv("data/train.csv", true, []int{id})
 
 	problem := kaggle.problem[id]
 	
-	//tc := make(TransitionCollection)
-
+	// Now ensure that the transition_collection is valid for this step size
+	kaggle.load_transition_collection(problem.steps)
+	
 	// This is the TRUE starting place : for reference
 	bs_start := NewBoardStats(board_width, board_height)
 	problem.start.AddToStats(bs_start)
@@ -160,7 +164,7 @@ func main_population_score() {
 
 	// Create a population of potential boards
 	pop_size := 1000
-	pop := NewPopulation(pop_size, problem.steps, &kaggle)
+	pop := NewPopulation(pop_size, problem.steps, problem.end, &kaggle.transition_collection[problem.steps])
 	for i:=0; i<pop_size; i++ {
 		// Create a candidate starting point
 		// NB:  We can only work from the problem.end
@@ -168,10 +172,7 @@ func main_population_score() {
 		//pop.individual[i].start.UniformRandom(0.32)
 	}
 	
-	p_temp := NewPopulation(pop_size, problem.steps, &kaggle)
-	
-	// Now ensure that the transition_collection is valid for this step size
-	kaggle.load_transition_collection(problem.steps)
+	p_temp := NewPopulation(pop_size, problem.steps, problem.end, &kaggle.transition_collection[problem.steps])
 
 	l := NewBoardIterator(board_width, board_height)
 	
@@ -194,7 +195,7 @@ func main_population_score() {
 			mismatch_from_true_start:=999
 			if i<5 && disp_row {
 				diff     := NewBoard_BoolPacked(board_width, board_height)
-				mismatch_from_true_start = problem.start.CompareTo(l.current, diff)
+				mismatch_from_true_start = l.current.CompareTo(problem.start, diff)
 				
 				bs_trial := NewBoardStats(board_width, board_height)
 				l.current.AddToStats(bs_trial)
@@ -209,8 +210,12 @@ func main_population_score() {
 			l.Iterate(problem.steps)
 			
 			// This is 'allowed' since we know the end result, and can store the diff
-			mismatch_from_true_end := problem.end.CompareTo(l.current, individual.diff)
-			individual.fitness = -mismatch_from_true_end
+			mismatch_from_true_end := l.current.CompareTo(problem.end, individual.diff)
+			
+			// This is a lower factor pressure, but good to have too
+			count_on := individual.start.CompareTo(board_empty, nil)
+			
+			individual.fitness = -mismatch_from_true_end*4 -count_on
 			
 			if i<5 && disp_row {
 				bs_result := NewBoardStats(board_width, board_height)
@@ -222,6 +227,10 @@ func main_population_score() {
 				
 				image.DrawStatsNext(bs_result)
 			}
+			
+			if mismatch_from_true_end==0 {
+				//fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d} :: PERFECTION!\n", iter, i, mismatch_from_true_start, mismatch_from_true_end)
+			}
 		}
 		
 		if disp_row {
@@ -230,6 +239,18 @@ func main_population_score() {
 			
 			image.DrawStatsCRLF()
 		}
+		
+		/*
+		best_individual := pop.BestIndividual()
+		fmt.Printf("%4d.best: Mismatch vs true {start,end} = {???,%3d}\n", iter, best_individual.fitness)
+		fmt.Print(best_individual.start)
+		
+		if best_individual.fitness>=0 {
+			// We have solved it, really
+			//fmt.Print(best_individual.start)
+			//break
+		}
+		*/
 		
 		p_temp.GenerationAfter(pop)
 		pop, p_temp = p_temp, pop // Switcheroo to advance to next population
@@ -241,15 +262,15 @@ func main_population_score() {
 }
 
 func main_create_stats(steps int) {
-	var transitions TransitionCollection
+	var transitions TransitionCollectionMap
 	
 	transitions.TrainingCSV_to_stats("data/train.csv", steps) 
-	// No flipping stats (#steps, count_of_training_examples, unique end-point-patches_raw, unique end-point-patches_udlr ):
-	// 1  9866 648k 471k
-	// 2 10042 620k 450k
-	// 3  9947 589k 427k
-	// 4 10089 565k 410k
-	// 5  9956 534k 387k
+	// No flipping stats (#steps, count_of_training_examples, unique end-point-patches_raw, unique end-point-patches_ud-or-lr, unique end-point-patches_ud*lr ):
+	// 1  9866 648k 471k 454k
+	// 2 10042 620k 450k 434k
+	// 3  9947 589k 427k 411k
+	// 4 10089 565k 410k 394k
+	// 5  9956 534k 387k 374k
 	
 	transitions.SaveCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps))
 }
@@ -258,22 +279,38 @@ func main_create_stats_all() {
 	for _,i := range( []int{1,2,3,4,5} ) {
 		main_create_stats(i)
 	}
+	/*
+[andrewsm@square reverse-gol]$ ls -l stats/
+total 66520
+-rw-rw-r--. 1 andrewsm andrewsm 12129025 Feb 27 01:09 transition-1.csv
+-rw-rw-r--. 1 andrewsm andrewsm 13549146 Feb 27 01:09 transition-2.csv
+-rw-rw-r--. 1 andrewsm andrewsm 14002885 Feb 27 01:09 transition-3.csv
+-rw-rw-r--. 1 andrewsm andrewsm 14329277 Feb 27 01:10 transition-4.csv
+-rw-rw-r--. 1 andrewsm andrewsm 14098291 Feb 27 01:10 transition-5.csv
+	 */
 }
 
 
 func main_read_stats(steps int) {
-	var transitions TransitionCollection
+	var transitions TransitionCollectionList
 	
 	transitions.LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 }
 
 func main() {
+	//rand.Seed(time.Now().UnixNano()) 
+	rand.Seed(1)
+	
 	//main_timer()
-	//main_verify_training_examples()
 	//main_visualize_density()
+	
+	//main_verify_training_examples()
 	main_population_score()
+	
 	//main_create_stats(1)
 	//main_create_stats_all()
 	//main_read_stats(1)
+	
+	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
 }
 
