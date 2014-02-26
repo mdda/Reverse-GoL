@@ -33,6 +33,8 @@ func build_count_bits_array() {
 	//fmt.Print(count_bits_array, "\n")
 }
 
+var board_empty *Board_BoolPacked
+
 // NewBoard_BoolArray returns an empty field of the specified width and height.
 func NewBoard_BoolPacked(w,h int) *Board_BoolPacked { // OPTIMIZED FOR BoolPacked
 	if board_width > 22 {
@@ -299,5 +301,6 @@ func (offspring *Board_BoolPacked) CrossoverFrom(p1, p2 *Board_BoolPacked) {
 func init() {
 	fmt.Print("init() called\n")
 	build_count_bits_array()
+	board_empty = NewBoard_BoolPacked(board_width, board_height)
 }
 
