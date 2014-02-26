@@ -250,6 +250,6 @@ func main() {
 	//main_verify_training_examples()
 	//main_visualize_density()
 	//main_population_score()
-	main_create_stats(1)
+	main_create_stats(4)
 }
 

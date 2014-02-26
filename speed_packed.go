@@ -138,9 +138,14 @@ type Patch int
 
 func (f *Board_BoolPacked) MakePatch(x,y int) Patch {
 	var p Patch=0
-	
-	// TODO 
-	
+	for dy:=-2; dy<=+2; dy++ {
+		for dx:=-2; dx<=+2; dx++ {
+			p<<=1
+			if f.isSet_safe(x+dx,y+dy) {
+				p |= 1
+			}
+		}
+	}
 	return p
 }
 
