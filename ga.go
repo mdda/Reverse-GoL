@@ -256,9 +256,9 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 			// This is a lower factor pressure, but good to have too
 			count_on := individual.start.CompareTo(board_empty, nil)
 			
-			//individual.fitness = -mismatch_from_true_end
+			individual.fitness = -mismatch_from_true_end  -count_on*0
 			//individual.fitness = -mismatch_from_true_end*4 -count_on*1
-			individual.fitness = -mismatch_from_true_end*problem.steps -count_on*1
+			//individual.fitness = -mismatch_from_true_end*problem.steps -count_on*1
 			
 			if i<3 && (iter % 100 == 0) {
 				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end) // , individual.start
@@ -301,10 +301,9 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 	}
 }
 
-func pick_problems_from_db_and_solve_them(steps int, is_training bool) {  
+func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int, is_training bool) {  
 	var kaggle LifeProblemSet
 	
-	problem_count_requested := 2
 	problem_list := list_of_interesting_problems_from_db(steps, problem_count_requested, is_training)
 	
 	//problem_list := []int{50,54}
@@ -318,6 +317,7 @@ func pick_problems_from_db_and_solve_them(steps int, is_training bool) {
 			fmt.Printf("Need to match problem[%d].steps=%d (not %d)\n", id, kaggle.problem[id].steps, steps)
 		}
 		seed := get_unprocessed_seed_from_db(id, is_training)
+		fmt.Printf("Running problem[%d].steps=%d (seed=%d)\n", id, kaggle.problem[id].steps, seed)
 		rand.Seed(int64(seed))
 		individual_result := create_solution(kaggle.problem[id], &kaggle)
 		save_solution_to_db(id, steps, seed, individual_result, is_training)
