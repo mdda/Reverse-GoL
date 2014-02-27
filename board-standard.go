@@ -130,6 +130,21 @@ func (f *Board_BoolPacked) String() string {
 	return buf.String()
 }
 
+// Returns the game board as a string of 1s and 0s with commas (with a preceeding ',')
+func (f *Board_BoolPacked) toCSV() string {
+	var buf bytes.Buffer
+	for y := 0; y < f.h; y++ {
+		for x := 0; x < f.w; x++ {
+			b := byte('0')
+			if f.isSet(x, y) {
+				b = '1'
+			}
+			buf.WriteByte(',')
+			buf.WriteByte(b)
+		}
+	}
+	return buf.String()
+}
 
 // Returns the game board as a string of 1s and 0s (compact)
 func (f *Board_BoolPacked) toCompactString() string {
@@ -160,11 +175,19 @@ func (f *Board_BoolPacked) AddToStats(bs *BoardStats) {
 	for y := 0; y < f.h; y++ {
 		for x := 0; x < f.w; x++ {
 			if f.isSet(x, y) {
-				bs.freq[x][y]++
+				bs.freq[y][x]++
 			}
 		}
 	}
 	bs.count++
+}
+
+func (f *Board_BoolPacked) ThresholdStats(bs *BoardStats, threshold_level_pct int) {
+	for y := 0; y < f.h; y++ {
+		for x := 0; x < f.w; x++ {
+			f.Set(x, y, bs.freq[y][x]*100>threshold_level_pct*bs.count)
+		}
+	}
 }
 
 type BoardStats struct {
@@ -341,7 +364,7 @@ func (i *ImageSet) DrawStats(row, col int, bs *BoardStats) {
 
 	for x := 0; x < bs.w; x++ {
 		for y := 0; y < bs.h; y++ {
-			g := bs.freq[x][y] * 255 / bs.count
+			g := bs.freq[y][x] * 255 / bs.count
 			if bs.mismatch_amount>0 {
 				pct := 100 - bs.mismatch_amount * 50 / 100
 				if pct<0 {

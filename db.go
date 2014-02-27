@@ -42,7 +42,9 @@ CREATE TABLE `solutions` (
 
 func get_db_connection() *sql.DB {
 	//db, err := sql.Open("mysql", "user:password@/database")
-	db, err := sql.Open("mysql", "reverse-gol:reverse-gol@/reverse-gol")
+	//db, err := sql.Open("mysql", "reverse-gol:reverse-gol@/reverse-gol")
+	db, err := sql.Open("mysql", "reverse-gol:reverse-gol@tcp(square.herald:3306)/reverse-gol")
+	
 	if err != nil {
 		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}
@@ -252,3 +254,79 @@ func save_solution_to_db(id int, steps int, seed int, individual_result *Individ
 	}
 }
 
+func create_submission(fname string) {
+	id_list := []int{}
+	
+	if false { // true for real submission, false for testing
+		for i:=1; i<=50000; i++ {
+			id_list = append(id_list, i)
+		}
+	} else {
+		//id_list = append(id_list, -50)
+		id_list = append(id_list, -54)
+	}
+	
+	db := get_db_connection()
+	defer db.Close()
+	
+	file, err := os.Create(fname)
+	if err != nil {
+		fmt.Println("File Creation Error:", err)
+		return
+	}
+	defer file.Close()
+	
+	file.WriteString("id")
+	for i:=1; i<=400; i++ {
+		file.WriteString(fmt.Sprintf(",start.%d", i))
+	}
+	file.WriteString("\n")
+	
+	query, err := db.Prepare("SELECT start FROM solutions WHERE id=?")
+	if err != nil {
+		fmt.Println("Query solutions prepare Error:", err)
+		return
+	}
+	
+	for _, id := range id_list {
+		rows, err := query.Query(id)
+		if err != nil {
+			fmt.Println("Query solutions row for id=%d Error:", err)
+			return
+		}
+
+		stats := NewBoardStats(board_width, board_height)
+		for rows.Next() {
+			var start string
+			err = rows.Scan(&start)
+			if err != nil {
+				fmt.Println("Query start for id=%d Error:", id, err)
+				return 
+			}
+			
+			start_board := NewBoard_BoolPacked(board_width, board_height)
+			start_board.fromCompactString(start)
+			start_board.AddToStats(stats)
+			//fmt.Println(start_board)
+		}
+		
+		//fmt.Println(stats)
+		
+		// Ok, so now let's figure out a board from these stats that's a better guess
+		guess_board := NewBoard_BoolPacked(board_width, board_height)
+		guess_board.ThresholdStats(stats, 51)
+		//fmt.Println(guess_board)
+		
+		file.WriteString(fmt.Sprintf("%d", id))
+		file.WriteString(guess_board.toCSV())
+		file.WriteString("\n")
+	}
+	fmt.Printf("TODO : gzip %s\n", fname) 
+}
+
+
+/* :: Useful SQL ::
+ * select id,steps,iter from solutions where id>0 and id<50 order by steps,id,iter
+ * select steps,count(id) from solutions group by steps
+ * select steps,seed,count(id) from solutions group by steps, seed
+ */

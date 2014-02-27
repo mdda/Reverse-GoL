@@ -318,6 +318,8 @@ func main() {
 	
 	if true {
 		//test_open_db()
+		//return
+		
 		//create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
 		
 		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
@@ -331,10 +333,17 @@ func main() {
 		//problem_count_requested:=2 
 		//training_only := true
 		
-		steps:=1 // This is delta
-		problem_count_requested:=1000
+		steps:=3 // This is delta
+		problem_count_requested:=10000
 		training_only := false
 		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
+	}
+	
+	if false {
+		// create submission
+		fname := fmt.Sprintf("data/submission_mdda_%s.csv", time.Now().Format("2006-01-02_03-04"))
+		//fmt.Println(fname)
+		create_submission(fname)
 	}
 	
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
