@@ -219,7 +219,7 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 	var best_individual *Individual
 	best_individual_start := NewBoard_BoolPacked(board_width, board_height)
 	
-	mismatch_from_true_start_initial, mismatch_from_true_start_latest := 0,0
+	mismatch_from_true_start_initial, mismatch_from_true_start_latest := -999,-999
 	mismatch_from_true_end_initial, mismatch_from_true_end_latest := 0,0
 	
 	iter_max  := 2000
@@ -229,10 +229,9 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 		for i, individual := range pop.individual {
 			l.current.CopyFrom(individual.start)
 			
-			mismatch_from_true_start:=999
 			if lps.is_training {
 				diff     := NewBoard_BoolPacked(board_width, board_height)
-				mismatch_from_true_start = l.current.CompareTo(problem.start, diff)
+				mismatch_from_true_start := l.current.CompareTo(problem.start, diff)
 				
 				if i==0 { // NB: Best individual is always in [0] (forced there in GenerationAfter)
 					mismatch_from_true_start_latest  = mismatch_from_true_start
@@ -319,7 +318,7 @@ func problem_worker_for_queue(worker_id int, queue chan *Work) {
 		if wp == nil {
 			break
 		}
-		fmt.Printf("worker #%d: item %v\n", worker_id, *wp)
+		fmt.Printf("worker #%d: received work %v\n", worker_id, *wp)
 		
 		id := wp.id
 
@@ -370,7 +369,7 @@ func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int
 			lps:&kaggle,
 		}
 		
-		fmt.Printf("master: give work %v\n", wp)
+		fmt.Printf("master   : hand out work package %d/%d :: %v\n", i, n_problems, wp)
 		//queue <- &work[i]  // be sure not to pass &item !!!
 		queue <- &wp  // be sure not to pass &item !!!
 	}
