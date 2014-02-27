@@ -305,9 +305,9 @@ func main() {
 	//main_visualize_density()
 	
 	//main_verify_training_examples()
-	main_population_score()
+	//main_population_score()
 	
-	//main_create_stats(1)
+	main_create_stats(1)
 	//main_create_stats_all()
 	//main_read_stats(1)
 	
