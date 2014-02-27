@@ -299,7 +299,7 @@ func main_read_stats(steps int) {
 	transitions.LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 }
 
-const currently_running_version int = 1001
+const currently_running_version int = 1002
 
 func main() {
 	//rand.Seed(time.Now().UnixNano()) 
@@ -330,9 +330,10 @@ func main() {
 		//steps:=5 // This is delta
 		//problem_count_requested:=2 
 		
-		steps:=1 // This is delta
-		problem_count_requested:=20
-		pick_problems_from_db_and_solve_them(steps, problem_count_requested, true)
+		steps:=5 // This is delta
+		problem_count_requested:=1
+		//pick_problems_from_db_and_solve_them(steps, problem_count_requested, true)
+		pick_problems_from_db_and_solve_them(steps, problem_count_requested, false)
 	}
 	
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
