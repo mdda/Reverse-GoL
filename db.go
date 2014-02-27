@@ -329,4 +329,5 @@ func create_submission(fname string) {
  * select id,steps,iter from solutions where id>0 and id<50 order by steps,id,iter
  * select steps,count(id) from solutions group by steps
  * select steps,seed,count(id) from solutions group by steps, seed
+ * update problems set currently_processing=0 where step=3
  */
