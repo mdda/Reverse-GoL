@@ -202,10 +202,14 @@ func get_unprocessed_seed_from_db(id int, is_training bool) int {
 	}
 
 	for rows.Next() {
-		err = rows.Scan(&seed)
+		var seed_max sql.NullInt64
+		err = rows.Scan(&seed_max)
 		if err != nil {
 			fmt.Println("Query seed_max row Error:", err)
 			return seed
+		}
+		if seed_max.Valid {
+			seed = int(seed_max.Int64)
 		}
 	}
 	return seed
