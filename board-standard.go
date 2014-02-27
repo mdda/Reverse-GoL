@@ -130,6 +130,32 @@ func (f *Board_BoolPacked) String() string {
 	return buf.String()
 }
 
+
+// Returns the game board as a string of 1s and 0s (compact)
+func (f *Board_BoolPacked) toCompactString() string {
+	var buf bytes.Buffer
+	for y := 0; y < f.h; y++ {
+		for x := 0; x < f.w; x++ {
+			b := byte('0')
+			if f.isSet(x, y) {
+				b = '1'
+			}
+			buf.WriteByte(b)
+		}
+	}
+	return buf.String()
+}
+// Reads the game board as a string of 1s and 0s (compact)
+func (f *Board_BoolPacked) fromCompactString(buf string)  {
+	for y,i := 0,0; y < f.h; y++ {
+		for x := 0; x < f.w; x++ {
+			f.Set(x,y, buf[i] == '1')
+			i++
+		}
+	}
+}
+
+
 func (f *Board_BoolPacked) AddToStats(bs *BoardStats) {
 	for y := 0; y < f.h; y++ {
 		for x := 0; x < f.w; x++ {
@@ -193,15 +219,24 @@ type LifeProblem struct {
 
 type LifeProblemSet struct {
 	problem map[int]LifeProblem
+	is_training bool
 	
 	transition_collection []TransitionCollectionList
 }
 
-func (s *LifeProblemSet) load_csv(f string, is_training bool, id_list []int) {
+// Unlike the db, the ids hear match the training.csv and test.csv files exactly
+func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 	if s.problem == nil {
 		s.problem = make(map[int]LifeProblem)
 	}
-	file, err := os.Open(f)
+	s.is_training = is_training
+	
+	filename := "data/test.csv"
+	if is_training {
+		filename = "data/train.csv"
+	}
+	
+	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

@@ -74,7 +74,7 @@ func main_verify_training_examples() {
 	for id := problem_offset; id < problem_offset+10; id++ {
 		id_list = append(id_list, id)
 	}
-	kaggle.load_csv("data/train.csv", true, id_list)
+	kaggle.load_csv(true, id_list)
 	//fmt.Println(kaggle.problem[107].start)
 	//fmt.Println(kaggle.problem[107].end)
 
@@ -147,7 +147,7 @@ func main_population_score() {
 	
 	var kaggle LifeProblemSet
 	id := 58
-	kaggle.load_csv("data/train.csv", true, []int{id})
+	kaggle.load_csv(true, []int{id})
 
 	problem := kaggle.problem[id]
 	
@@ -299,6 +299,8 @@ func main_read_stats(steps int) {
 	transitions.LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 }
 
+const currently_running_version int = 1001
+
 func main() {
 	//rand.Seed(time.Now().UnixNano()) 
 	rand.Seed(1)
@@ -318,7 +320,15 @@ func main() {
 		//test_open_db()
 		//create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
 		
+		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
+		//fmt.Println(probs)
 		
+		//reset_all_currently_processing(-1)
+		
+		steps:=5
+		// To force DB to solve the 2 training problems : 50 and 54 : 
+		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
+		pick_problems_from_db_and_solve_them(steps, true)
 	}
 	
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
