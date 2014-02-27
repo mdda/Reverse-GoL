@@ -325,9 +325,10 @@ func main() {
 		
 		//reset_all_currently_processing(-1)
 		
-		steps:=5
 		// To force DB to solve the 2 training problems : 50 and 54 : 
 		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
+		
+		steps:=5
 		pick_problems_from_db_and_solve_them(steps, true)
 	}
 	
