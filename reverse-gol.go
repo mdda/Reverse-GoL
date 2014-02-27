@@ -334,7 +334,7 @@ func main() {
 		//training_only := true
 		
 		steps:=3 // This is delta
-		problem_count_requested:=10000
+		problem_count_requested:=10000 // This may be truncated, if there are less available ids (some may be processing already)
 		training_only := false
 		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
 	}
