@@ -5,7 +5,7 @@ package main
 
 import (
 	"math/rand"
-//	"fmt"
+	"fmt"
 )
 
 type Individual struct {
@@ -194,11 +194,133 @@ func (pop *Population) GenerationAfter(prev *Population) {
 	}
 }
 
-/*
-func (p *Population) MutateIndividuals(another_mutation_pct int, radius int) {  // % do additional mutation, radius of action
-	for c, individual := range p.individual {
-		//individual.start.MutateFlipBits(rand.Intn(mutation_size))
-		individual.start.MutateRadiusBits(another_mutation_pct, radius)
+type IndividualResult struct {
+	individual *Individual
+	mismatch_from_true_start_initial, mismatch_from_true_start_final int
+	mismatch_from_true_end_initial, mismatch_from_true_end_final int
+	iter int
+}
+
+func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult {
+	// Create a population of potential boards
+	pop_size := 1000
+	pop := NewPopulation(pop_size, problem.steps, problem.end, &lps.transition_collection[problem.steps])
+	for i:=0; i<pop_size; i++ {
+		// Create a candidate starting point
+		// NB:  We can only work from the problem.end
+		pop.individual[i].start.CopyFrom(problem.end)
+	}
+	
+	p_temp := NewPopulation(pop_size, problem.steps, problem.end, &lps.transition_collection[problem.steps])
+
+	l := NewBoardIterator(board_width, board_height)
+	
+	var best_individual *Individual
+	best_individual_start := NewBoard_BoolPacked(board_width, board_height)
+	
+	mismatch_from_true_start_initial, mismatch_from_true_start_latest := 0,0
+	mismatch_from_true_end_initial, mismatch_from_true_end_latest := 0,0
+	
+	iter_max  := 2000
+	iter_last := 0
+	for iter:=0; iter<iter_max; iter++ {
+		// Evaluate fitness of every individual in pop
+		for i, individual := range pop.individual {
+			l.current.CopyFrom(individual.start)
+			
+			mismatch_from_true_start:=999
+			if lps.is_training {
+				diff     := NewBoard_BoolPacked(board_width, board_height)
+				mismatch_from_true_start = l.current.CompareTo(problem.start, diff)
+				
+				if i==0 { // NB: Best individual is always in [0] (forced there in GenerationAfter)
+					mismatch_from_true_start_latest  = mismatch_from_true_start
+					if iter == 0 { 
+						mismatch_from_true_start_initial  = mismatch_from_true_start
+					}
+				}
+			}
+			
+			l.Iterate(problem.steps)
+			
+			// This is 'allowed' since we know the end result, and can store the diff
+			mismatch_from_true_end := l.current.CompareTo(problem.end, individual.diff)
+			
+			if i==0 { // NB: Best individual is always in [0] (forced there in GenerationAfter)
+				mismatch_from_true_end_latest  = mismatch_from_true_end
+				if iter == 0 { 
+					mismatch_from_true_end_initial  = mismatch_from_true_end
+				}
+			}
+			
+			// This is a lower factor pressure, but good to have too
+			count_on := individual.start.CompareTo(board_empty, nil)
+			
+			//individual.fitness = -mismatch_from_true_end
+			//individual.fitness = -mismatch_from_true_end*4 -count_on*1
+			individual.fitness = -mismatch_from_true_end*problem.steps -count_on*1
+			
+			if i<3 && (iter % 100 == 0) {
+				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end) // , individual.start
+			}
+			
+			iter_last=iter
+		}
+		
+		best_individual = pop.BestIndividual()
+		//fmt.Printf("%4d.best: Mismatch vs true {start,end} = {???,%3d}\n", iter, best_individual.fitness)
+		//fmt.Print(best_individual.start)
+
+		if iter>0 && (iter % 100 == 0) {
+			difference_over_100_generations := best_individual.start.CompareTo(best_individual_start, nil)
+			if difference_over_100_generations == 0 {
+				// Our best candidate hasn't improved in 100 generations
+				// So our job is done!
+				iter = iter_max
+				break
+			}
+		}
+		
+		if iter % 100 == 0 {
+			best_individual_start.CopyFrom(best_individual.start)
+		}
+		
+		p_temp.GenerationAfter(pop)
+		pop, p_temp = p_temp, pop // Switcheroo to advance to next population
+	}
+	
+	return &IndividualResult{
+		individual : best_individual, 
+		
+		mismatch_from_true_start_initial : mismatch_from_true_start_initial, 
+		mismatch_from_true_start_final   : mismatch_from_true_start_latest,
+		mismatch_from_true_end_initial : mismatch_from_true_end_initial, 
+		mismatch_from_true_end_final   : mismatch_from_true_end_latest,
+		
+		iter:iter_last,
 	}
 }
-*/
+
+func pick_problems_from_db_and_solve_them(steps int, is_training bool) {  
+	var kaggle LifeProblemSet
+	
+	problem_count_requested := 2
+	problem_list := list_of_interesting_problems_from_db(steps, problem_count_requested, is_training)
+	
+	//problem_list := []int{50,54}
+	kaggle.load_csv(is_training, problem_list)
+
+	// Now ensure that the transition_collection is valid for this step size
+	kaggle.load_transition_collection(steps)
+	
+	for _, id := range problem_list {
+		if kaggle.problem[id].steps != steps {
+			fmt.Printf("Need to match problem[%d].steps=%d (not %d)\n", id, kaggle.problem[id].steps, steps)
+		}
+		seed := get_unprocessed_seed_from_db(id, is_training)
+		rand.Seed(int64(seed))
+		individual_result := create_solution(kaggle.problem[id], &kaggle)
+		save_solution_to_db(id, steps, seed, individual_result, is_training)
+	}
+}
+
