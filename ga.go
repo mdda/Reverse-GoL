@@ -6,6 +6,7 @@ package main
 import (
 	"math/rand"
 	"fmt"
+	"runtime"
 )
 
 type Individual struct {
@@ -301,6 +302,35 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 	}
 }
 
+// http://devcry.heiho.net/2012/07/golang-masterworker-in-go.html
+type Work struct {
+	id int
+	i,n int
+	is_training bool
+	steps int
+	lps *LifeProblemSet
+}
+
+func problem_worker_for_queue(worker_id int, queue chan *Work) {
+	var wp *Work
+	for {
+		// get work item (pointer) from the queue
+		wp = <-queue
+		if wp == nil {
+			break
+		}
+		fmt.Printf("worker #%d: item %v\n", worker_id, *wp)
+		
+		id := wp.id
+
+		seed := get_unprocessed_seed_from_db(id, wp.is_training)
+		fmt.Printf("(%5d/%5d) Running problem[%d].steps=%d (seed=%d)\n", wp.i, wp.n, id, wp.steps, seed)
+		rand.Seed(int64(seed))
+		individual_result := create_solution(wp.lps.problem[id], wp.lps)
+		save_solution_to_db(id, wp.steps, seed, individual_result, wp.is_training)
+	}
+}
+
 func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int, is_training bool) {  
 	var kaggle LifeProblemSet
 	
@@ -312,15 +342,43 @@ func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int
 	// Now ensure that the transition_collection is valid for this step size
 	kaggle.load_transition_collection(steps)
 	
-	for _, id := range problem_list {
+	queue := make(chan *Work)
+
+	n_problems := len(problem_list)
+
+	ncpu := runtime.NumCPU()
+	if n_problems < ncpu {
+		ncpu = n_problems
+	}
+	runtime.GOMAXPROCS(ncpu)
+
+	// spawn workers
+	for i := 0; i < ncpu; i++ {
+		go problem_worker_for_queue(i, queue)
+	}
+
+	// master: give work
+	for i, id := range problem_list {
 		if kaggle.problem[id].steps != steps {
 			fmt.Printf("Need to match problem[%d].steps=%d (not %d)\n", id, kaggle.problem[id].steps, steps)
 		}
-		seed := get_unprocessed_seed_from_db(id, is_training)
-		fmt.Printf("Running problem[%d].steps=%d (seed=%d)\n", id, kaggle.problem[id].steps, seed)
-		rand.Seed(int64(seed))
-		individual_result := create_solution(kaggle.problem[id], &kaggle)
-		save_solution_to_db(id, steps, seed, individual_result, is_training)
+		wp := Work{
+			id:id, 
+			i:i, n:n_problems,
+			is_training:is_training,
+			steps:steps, 
+			lps:&kaggle,
+		}
+		
+		fmt.Printf("master: give work %v\n", wp)
+		//queue <- &work[i]  // be sure not to pass &item !!!
+		queue <- &wp  // be sure not to pass &item !!!
+	}
+
+	// all work is done
+	// push ncpu*nil on the queue so that each worker will receive signal that there is no more work
+	for n := 0; n < ncpu; n++ {
+		queue <- nil
 	}
 }
 
