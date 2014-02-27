@@ -388,11 +388,13 @@ func (t *TransitionCollectionList) LoadCSV(f string) {
 		// record is []string
 		end, _ := strconv.Atoi(record[0])
 		freq_total, _ := strconv.Atoi(record[1])
-		starts := make([]PatchFreq, len(record)/2-2) // These are listed in {patch, freq} pairs
-		for i:=2; i<len(record); i+=2 {
+		starts := make([]PatchFreq, len(record)/2-1) // These are listed in {patch, freq} pairs
+		for i,j:=2,0; i<len(record); i+=2 {
+			//fmt.Printf("Loading col: %d\n", j)
 			patch, _ := strconv.Atoi(record[i])
 			freq, _  := strconv.Atoi(record[i+1])
-			starts[i-2]=PatchFreq{patch:Patch(patch), freq:freq}
+			starts[j]=PatchFreq{patch:Patch(patch), freq:freq}
+			j++
 		}
 		t.pre[Patch(end)] = PatchList{starts:starts, freq_total:freq_total}
 	}
