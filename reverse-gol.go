@@ -329,11 +329,12 @@ func main() {
 		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
 		//steps:=5 // This is delta
 		//problem_count_requested:=2 
+		//training_only := true
 		
-		steps:=5 // This is delta
-		problem_count_requested:=1
-		//pick_problems_from_db_and_solve_them(steps, problem_count_requested, true)
-		pick_problems_from_db_and_solve_them(steps, problem_count_requested, false)
+		steps:=1 // This is delta
+		problem_count_requested:=1000
+		training_only := false
+		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
 	}
 	
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
