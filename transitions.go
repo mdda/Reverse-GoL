@@ -125,10 +125,10 @@ func (p Patch) BestOrientation() PatchOrientation {
 func (tc *TransitionCollectionList) GetRandomEntry_OrientationCompensated(q Patch) Patch {
 	oriented := q.BestOrientation()
 	
-	if len(tc.pre[oriented.patch])>0 {
+	if pl, ok :=tc.pre[oriented.patch]; ok {
 		// if found, then copy a random one of its starters into the new individual
 		//fmt.Printf("Found known end!\n")
-		p := tc.pre[oriented.patch].GetRandomEntry()
+		p := pl.GetRandomEntry()
 		
 		// Do the same (best) orientation maneuver on p
 		if oriented.flip_ud {
@@ -145,10 +145,18 @@ func (tc *TransitionCollectionList) GetRandomEntry_OrientationCompensated(q Patc
 	return Patch(-1)
 }
 
-type PatchSet  map[Patch]bool
-type PatchList []Patch
+type PatchFreq struct {
+	patch Patch
+	freq int
+}
+type PatchMap  map[Patch]int
+type PatchList struct {
+	starts []PatchFreq
+	freq_total int
+}
 
-func (starts PatchSet) GetRandomEntryUNUSED() Patch {  // Not in use because of problems below
+/*
+func (starts PatchMap) GetRandomEntryUNUSED() Patch {  // Not in use because of problems below
 	n_starts := len(starts)
 
 	if false {
@@ -186,15 +194,16 @@ func (starts PatchSet) GetRandomEntryUNUSED() Patch {  // Not in use because of 
 	start_random_index := rand.Intn(n_starts)
 	return Patch(start_list[start_random_index])
 }
+*/
 
-func (starts PatchList) GetRandomEntry() Patch {
-	n_starts := len(starts)
+func (pl PatchList) GetRandomEntry() Patch {
+	n_starts := len(pl.starts)
 	start_random_index := rand.Intn(n_starts)
-	return Patch(starts[start_random_index])
+	return pl.starts[start_random_index].patch
 }
 
 type TransitionCollectionMap struct {
-	pre map[Patch]PatchSet
+	pre map[Patch]PatchMap
 }
 
 type TransitionCollectionList struct {
@@ -205,7 +214,7 @@ const TransitionCollectionFileStrFmt = "stats/transition-%d.csv"
 
 func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int) {
 	if t.pre == nil {
-		t.pre = make(map[Patch]PatchSet)
+		t.pre = make(map[Patch]PatchMap)
 	}
 	file, err := os.Open(f)
 	if err != nil {
@@ -289,10 +298,10 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 					} else {
 						// If end_rep does not exist : Make [start_rep] the array dangling off end_rep
 						//fmt.Printf("id[%5d]@(%2d,%2d) creating fresh map for %25b!\n", id, x,y, q)
-						t.pre[q] = make(PatchSet)
+						t.pre[q] = make(PatchMap)
 					}
 					// Add start_rep to the map dangling off end_rep
-					t.pre[q][p]=true
+					t.pre[q][p]++
 					
 					/*
 					if q == 14336 { // This is '***'
@@ -314,6 +323,11 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 	fmt.Printf("Total record  count : %7d\n", record_count) 
 }
 
+type ByFreqDesc []PatchFreq
+func (a ByFreqDesc) Len() int           { return len(a) }
+func (a ByFreqDesc) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByFreqDesc) Less(i, j int) bool { return a[i].freq > a[j].freq }
+
 func (t *TransitionCollectionMap) SaveCSV(f string) {
 	file, err := os.Create(f)
 	if err != nil {
@@ -322,14 +336,31 @@ func (t *TransitionCollectionMap) SaveCSV(f string) {
 	}
 	defer file.Close()
 	
+	// Need to determine total_freq, and potentially do sorting
+	// starts is a map[Patch]int : Want to Create a PatchList from this PatchMap
+	
 	for end, starts := range t.pre {
-		file.WriteString(fmt.Sprintf("%d", end))
-		for start,_ := range starts{ 
-			file.WriteString(fmt.Sprintf(",%d", start))
+		freq_total :=0
+		
+		// Allocate an array of the right size
+		starts_list := make([]PatchFreq, len(starts))
+		i:=0
+		for start,freq := range starts {  
+			starts_list[i] = PatchFreq{patch:start, freq:freq}
+			freq_total += freq
+			i++
+		}
+		
+		// Sort the starts_list[] here...
+		sort.Sort(ByFreqDesc(starts_list))
+		
+		// Write out the list as a CSV list 
+		file.WriteString(fmt.Sprintf("%d,%d", int(end), freq_total))
+		for _,start := range starts_list { 
+			file.WriteString(fmt.Sprintf(",%d,%d", int(start.patch), start.freq))
 		}
 		file.WriteString("\n")
 	}
-	
 }
 
 func (t *TransitionCollectionList) LoadCSV(f string) {
@@ -356,12 +387,14 @@ func (t *TransitionCollectionList) LoadCSV(f string) {
 
 		// record is []string
 		end, _ := strconv.Atoi(record[0])
-		starts := make([]Patch, len(record)-1)
-		for i:=1; i<len(record); i++ {
-			start, _ := strconv.Atoi(record[i])
-			starts[i-1]=Patch(start)
+		freq_total, _ := strconv.Atoi(record[1])
+		starts := make([]PatchFreq, len(record)/2-2) // These are listed in {patch, freq} pairs
+		for i:=2; i<len(record); i+=2 {
+			patch, _ := strconv.Atoi(record[i])
+			freq, _  := strconv.Atoi(record[i+1])
+			starts[i-2]=PatchFreq{patch:Patch(patch), freq:freq}
 		}
-		t.pre[Patch(end)] = starts
+		t.pre[Patch(end)] = PatchList{starts:starts, freq_total:freq_total}
 	}
 	fmt.Printf("Loaded %d transition end-points\n", len(t.pre))
 }
