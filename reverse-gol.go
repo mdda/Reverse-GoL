@@ -1,6 +1,6 @@
 package main
 
-// go build reverse-gol.go speed_packed.go ga.go board-standard.go transitions.go && ./reverse-gol
+// GOPATH=`pwd` go build reverse-gol.go speed_packed.go ga.go board-standard.go transitions.go db.go && ./reverse-gol
 
 import (
 	"fmt"
@@ -146,7 +146,7 @@ func main_population_score() {
 	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
 	
 	var kaggle LifeProblemSet
-	id := 54
+	id := 58
 	kaggle.load_csv("data/train.csv", true, []int{id})
 
 	problem := kaggle.problem[id]
@@ -215,14 +215,16 @@ func main_population_score() {
 			// This is a lower factor pressure, but good to have too
 			count_on := individual.start.CompareTo(board_empty, nil)
 			
-			individual.fitness = -mismatch_from_true_end*4 -count_on
+			//individual.fitness = -mismatch_from_true_end
+			//individual.fitness = -mismatch_from_true_end*4 -count_on*1
+			individual.fitness = -mismatch_from_true_end*problem.steps -count_on*1
 			
 			if i<5 && disp_row {
 				bs_result := NewBoardStats(board_width, board_height)
 				//l.current.AddToStats(bs_result)
 				individual.diff.AddToStats(bs_result)
 				
-				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end)
+				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end) // , individual.start
 				bs_result.MisMatchBy(mismatch_from_true_end)
 				
 				image.DrawStatsNext(bs_result)
@@ -305,11 +307,19 @@ func main() {
 	//main_visualize_density()
 	
 	//main_verify_training_examples()
-	//main_population_score()
 	
 	//main_create_stats(1)
 	//main_create_stats_all()
-	main_read_stats(1)
+	//main_read_stats(1)
+	
+	//main_population_score()
+	
+	if true {
+		//test_open_db()
+		//create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
+		
+		
+	}
 	
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
 }
