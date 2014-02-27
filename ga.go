@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"fmt"
 	"runtime"
+	"time"
 )
 
 type Individual struct {
@@ -229,9 +230,10 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 		for i, individual := range pop.individual {
 			l.current.CopyFrom(individual.start)
 			
+			mismatch_from_true_start:=-999 // NB: Don't use this in fitness calculations!!
 			if lps.is_training {
 				diff     := NewBoard_BoolPacked(board_width, board_height)
-				mismatch_from_true_start := l.current.CompareTo(problem.start, diff)
+				mismatch_from_true_start = l.current.CompareTo(problem.start, diff)
 				
 				if i==0 { // NB: Best individual is always in [0] (forced there in GenerationAfter)
 					mismatch_from_true_start_latest  = mismatch_from_true_start
@@ -318,9 +320,9 @@ func problem_worker_for_queue(worker_id int, queue chan *Work) {
 		if wp == nil {
 			break
 		}
-		fmt.Printf("worker #%d: received work %v\n", worker_id, *wp)
-		
 		id := wp.id
+		fmt.Printf("worker #%d: received work :: %5d\n", worker_id, id)
+		
 
 		seed := get_unprocessed_seed_from_db(id, wp.is_training)
 		fmt.Printf("(%5d/%5d) Running problem[%d].steps=%d (seed=%d)\n", wp.i, wp.n, id, wp.steps, seed)
@@ -356,6 +358,8 @@ func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int
 		go problem_worker_for_queue(i, queue)
 	}
 
+
+	start_time := time.Now()
 	// master: give work
 	for i, id := range problem_list {
 		if kaggle.problem[id].steps != steps {
@@ -369,9 +373,23 @@ func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int
 			lps:&kaggle,
 		}
 		
-		fmt.Printf("master   : hand out work package %d/%d :: %v\n", i, n_problems, wp)
-		//queue <- &work[i]  // be sure not to pass &item !!!
-		queue <- &wp  // be sure not to pass &item !!!
+		now_time := time.Now()
+		eta := "Unknown"
+		rate_per_1000 := 0
+		
+		completed_units := (i-ncpu) // We launched ncpu 'for free', so only have completed the reduced #
+		if completed_units>0 {
+			total_duration := now_time.Sub(start_time)
+			
+			eta_duration := time.Duration(n_problems * int(total_duration)/ completed_units)
+			eta_time := start_time.Add(eta_duration)
+			eta = eta_time.Format("2-Jan-2006 @ 3:04pm")
+			
+			rate_per_1000 = int(eta_duration) * 1000 / n_problems / 1000 / 1000 / 1000 // Convert nano-seconds to seconds
+		}
+		
+		fmt.Printf("master   : hand out work :: %5d -- %5d/%5d ETA: %s  Rate=%2dm/1000 (%d steps)\n", id, i, n_problems, eta, rate_per_1000/60, steps)
+		queue <- &wp
 	}
 
 	// all work is done
