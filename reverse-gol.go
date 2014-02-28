@@ -316,7 +316,7 @@ func main() {
 	
 	//main_population_score()
 	
-	if true {
+	if false {
 		//test_open_db()
 		//return
 		
@@ -340,7 +340,7 @@ func main() {
 		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
 	}
 	
-	if false {
+	if true {
 		// create submission
 		fname := fmt.Sprintf("data/submission_mdda_%s.csv", time.Now().Format("2006-01-02_03-04"))
 		//fmt.Println(fname)
