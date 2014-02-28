@@ -345,12 +345,12 @@ func create_submission(fname string) {
 			count_ids_found++ // We had 1 usable row at least
 		}
 		
-		fmt.Println(stats)
+		//fmt.Println(stats)
 		
 		// Ok, so now let's figure out a board from these stats that's a better guess
 		guess_board := NewBoard_BoolPacked(board_width, board_height)
 		guess_board.ThresholdStats(stats, 50)
-		fmt.Println(guess_board)
+		//fmt.Println(guess_board)
 		
 		file.WriteString(fmt.Sprintf("%d", id))
 		file.WriteString(guess_board.toCSV())
