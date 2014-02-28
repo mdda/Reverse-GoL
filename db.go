@@ -338,28 +338,30 @@ func create_submission(fname string) {
 			if this_is_better_than_current_best {
 				best = BestRow{start_board, iter, seed, version, mtei, mtef, true}
 			}
-			
-			count_ids_found++
-
 		}
 		// Now add a single instance of best board 
 		if best.valid {
 			best.start_board.AddToStats(stats)
+			count_ids_found++ // We had 1 usable row at least
 		}
 		
-		//fmt.Println(stats)
+		fmt.Println(stats)
 		
 		// Ok, so now let's figure out a board from these stats that's a better guess
 		guess_board := NewBoard_BoolPacked(board_width, board_height)
-		guess_board.ThresholdStats(stats, 51)
-		//fmt.Println(guess_board)
+		guess_board.ThresholdStats(stats, 50)
+		fmt.Println(guess_board)
 		
 		file.WriteString(fmt.Sprintf("%d", id))
 		file.WriteString(guess_board.toCSV())
 		file.WriteString("\n")
 	}
 	if count_ids_found == len(id_list) {
-		fmt.Printf("TODO : gzip %s\n", fname) 
+		if count_ids_found==50000 {
+			fmt.Printf("TODO : gzip %s\n", fname) 
+		} else {
+			fmt.Printf("Test file created : %s\n", fname) 
+		}
 	} else {
 		fmt.Printf("BAD SUBMISSION FILE :: ONLY HAS %d of %d IDs!\n", count_ids_found, len(id_list)) 
 	}
