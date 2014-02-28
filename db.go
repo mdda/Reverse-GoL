@@ -257,7 +257,7 @@ func save_solution_to_db(id int, steps int, seed int, individual_result *Individ
 func create_submission(fname string) {
 	id_list := []int{}
 	
-	if false { // true for real submission, false for testing
+	if true { // true for real submission, false for testing
 		for i:=1; i<=50000; i++ {
 			id_list = append(id_list, i)
 		}
@@ -265,6 +265,9 @@ func create_submission(fname string) {
 		//id_list = append(id_list, -50)
 		id_list = append(id_list, -54)
 	}
+	
+	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
+	only_submit_for_steps_equals=5
 	
 	db := get_db_connection()
 	defer db.Close()
@@ -282,13 +285,13 @@ func create_submission(fname string) {
 	}
 	file.WriteString("\n")
 	
-	query, err := db.Prepare("SELECT iter,seed,version,mtei,mtef,start FROM solutions WHERE id=?")
+	query, err := db.Prepare("SELECT steps,iter,seed,version,mtei,mtef,start FROM solutions WHERE id=?")
 	if err != nil {
 		fmt.Println("Query solutions prepare Error:", err)
 		return
 	}
 	
-	count_ids_found:=0
+	count_ids_found, count_zeroes_submitted := 0,0
 	for _, id := range id_list {
 		rows, err := query.Query(id)
 		if err != nil {
@@ -298,7 +301,7 @@ func create_submission(fname string) {
 
 		type BestRow struct {
 			start_board *Board_BoolPacked
-			iter,seed,version int
+			steps,iter,seed,version int
 			mtei, mtef int
 			valid bool
 		}
@@ -306,9 +309,9 @@ func create_submission(fname string) {
 		stats := NewBoardStats(board_width, board_height)
 		for rows.Next() {
 			var start string
-			var iter,seed,version int
+			var steps,iter,seed,version int
 			var mtei, mtef int
-			err = rows.Scan(&iter, &seed, &version, &mtei, &mtef, &start)
+			err = rows.Scan(&steps, &iter, &seed, &version, &mtei, &mtef, &start)
 			if err != nil {
 				fmt.Println("Query start for id=%d Error:", id, err)
 				return 
@@ -336,10 +339,11 @@ func create_submission(fname string) {
 			}
 			
 			if this_is_better_than_current_best {
-				best = BestRow{start_board, iter, seed, version, mtei, mtef, true}
+				best = BestRow{start_board, steps, iter, seed, version, mtei, mtef, true}
 			}
 		}
-		// Now add a single instance of best board 
+		
+		// Now add a single instance of best board to the stats to act as a tie-breaker 
 		if best.valid {
 			best.start_board.AddToStats(stats)
 			count_ids_found++ // We had 1 usable row at least
@@ -352,12 +356,26 @@ func create_submission(fname string) {
 		guess_board.ThresholdStats(stats, 50)
 		//fmt.Println(guess_board)
 		
+		// This implements a filter (if only_submit_for_steps_equals tells us to do so)
+		if only_submit_for_steps_equals>0 && (!best.valid || best.steps!=only_submit_for_steps_equals) {
+			// Instead of the true guess, zero it all out
+			guess_board = NewBoard_BoolPacked(board_width, board_height)
+			count_zeroes_submitted++
+			if !best.valid {
+				count_ids_found++ // This row was made 'usable' (i.e. created as all zeroes), so adjust counter
+			}
+		}
+		
 		file.WriteString(fmt.Sprintf("%d", id))
 		file.WriteString(guess_board.toCSV())
 		file.WriteString("\n")
 	}
 	if count_ids_found == len(id_list) {
 		if count_ids_found==50000 {
+			if count_zeroes_submitted>0 {
+				non_zero := count_ids_found-count_zeroes_submitted
+				fmt.Printf("FILTERED SUBMISSION FILE :: ONLY HAS %d delta=%d non-zero entries\n", non_zero, only_submit_for_steps_equals) 
+			}
 			fmt.Printf("TODO : gzip %s\n", fname) 
 		} else {
 			fmt.Printf("Test file created : %s\n", fname) 

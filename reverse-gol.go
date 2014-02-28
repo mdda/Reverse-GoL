@@ -316,7 +316,7 @@ func main() {
 	
 	//main_population_score()
 	
-	if true {
+	if false {
 		//test_open_db()
 		//return
 		
@@ -333,14 +333,14 @@ func main() {
 		//problem_count_requested:=2 
 		//training_only := true
 		
-		steps:=4 // This is delta
+		steps:=3 // This is delta
 		//problem_count_requested:=10000 // This may be truncated, if there are less available ids (some may be processing already)
-		problem_count_requested:=2000 // This may be truncated, if there are less available ids (some may be processing already)
+		problem_count_requested:=1000 // This may be truncated, if there are less available ids (some may be processing already)
 		training_only := false
 		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
 	}
 	
-	if false {
+	if true {
 		// create submission
 		fname := fmt.Sprintf("data/submission_mdda_%s.csv", time.Now().Format("2006-01-02_03-04"))
 		//fmt.Println(fname)
