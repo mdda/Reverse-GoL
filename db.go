@@ -282,12 +282,13 @@ func create_submission(fname string) {
 	}
 	file.WriteString("\n")
 	
-	query, err := db.Prepare("SELECT start FROM solutions WHERE id=?")
+	query, err := db.Prepare("SELECT iter,seed,version,mtei,mtef,start FROM solutions WHERE id=?")
 	if err != nil {
 		fmt.Println("Query solutions prepare Error:", err)
 		return
 	}
 	
+	count_ids_found:=0
 	for _, id := range id_list {
 		rows, err := query.Query(id)
 		if err != nil {
@@ -295,19 +296,55 @@ func create_submission(fname string) {
 			return
 		}
 
+		type BestRow struct {
+			start_board *Board_BoolPacked
+			iter,seed,version int
+			mtei, mtef int
+			valid bool
+		}
+		best := BestRow{valid:false}
 		stats := NewBoardStats(board_width, board_height)
 		for rows.Next() {
 			var start string
-			err = rows.Scan(&start)
+			var iter,seed,version int
+			var mtei, mtef int
+			err = rows.Scan(&iter, &seed, &version, &mtei, &mtef, &start)
 			if err != nil {
 				fmt.Println("Query start for id=%d Error:", id, err)
 				return 
 			}
 			
+			// Perhaps there are some entries we want to exclude altogether 
+			if version==999 { 
+				continue
+			}
+			
 			start_board := NewBoard_BoolPacked(board_width, board_height)
 			start_board.fromCompactString(start)
+			
+			// Do every entry twice ( so that an additional +1 for the best will tie-break a 50/50 threshold)
+			start_board.AddToStats(stats)
 			start_board.AddToStats(stats)
 			//fmt.Println(start_board)
+			
+			// Figure out whether this is going to be the best board for tie-breaking
+			this_is_better_than_current_best := !best.valid // This picks up the first one immediately
+			
+			// If we got the answer quicker, or ended up with fewer errors, this is probably better
+			if iter<best.iter || mtef<best.mtef { 
+				this_is_better_than_current_best=true
+			}
+			
+			if this_is_better_than_current_best {
+				best = BestRow{start_board, iter, seed, version, mtei, mtef, true}
+			}
+			
+			count_ids_found++
+
+		}
+		// Now add a single instance of best board 
+		if best.valid {
+			best.start_board.AddToStats(stats)
 		}
 		
 		//fmt.Println(stats)
@@ -321,7 +358,11 @@ func create_submission(fname string) {
 		file.WriteString(guess_board.toCSV())
 		file.WriteString("\n")
 	}
-	fmt.Printf("TODO : gzip %s\n", fname) 
+	if count_ids_found == len(id_list) {
+		fmt.Printf("TODO : gzip %s\n", fname) 
+	} else {
+		fmt.Printf("BAD SUBMISSION FILE :: ONLY HAS %d of %d IDs!\n", count_ids_found, len(id_list)) 
+	}
 }
 
 
