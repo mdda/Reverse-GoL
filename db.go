@@ -327,7 +327,21 @@ func create_submission(fname string) {
 
 /* :: Useful SQL ::
  * select id,steps,iter from solutions where id>0 and id<50 order by steps,id,iter
- * select steps,count(id) from solutions group by steps
- * select steps,seed,count(id) from solutions group by steps, seed
- * update problems set currently_processing=0 where step=3
+ * select steps,seed,count(id) from solutions where id>0 group by steps, seed
+ * 
+ * How many of each type do we have ::
+ * select steps,count(id) from solutions where id>0 group by steps
+ * 
+ * Fix early aborted runs :: 
+ * update problems set currently_processing=0 where id>0 and steps=3
+ * 
+ * What is the state of all solutions ::
+ * select steps,solution_count,count(id) from problems where id>0 group by steps, solution_count order by steps,solution_count
+ * 
+ * Where are there holes to fill ::
+ * select steps,solution_count,count(id) from problems where id>0 and solution_count=0 group by steps, solution_count order by steps
+ * 
+ * What is currently being worked on ::
+ * select steps,solution_count,count(id) from problems where id>0 and currently_processing=1 group by steps, solution_count order by steps
+ * 
  */

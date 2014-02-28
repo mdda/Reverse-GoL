@@ -388,7 +388,7 @@ func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int
 			rate_per_1000 = int(eta_duration) * 1000 / n_problems / 1000 / 1000 / 1000 // Convert nano-seconds to seconds
 		}
 		
-		fmt.Printf("master   : hand out work :: %5d -- %5d/%5d ETA: %s  Rate=%2dm/1000 (%d steps)\n", id, i, n_problems, eta, rate_per_1000/60, steps)
+		fmt.Printf("master   : hand out work :: %5d -- %5d/%5d ETA: %s  Rate=%2dm/1000 (delta=%d)\n", id, i, n_problems, eta, rate_per_1000/60, steps)
 		queue <- &wp
 	}
 
