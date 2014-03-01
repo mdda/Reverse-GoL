@@ -311,6 +311,7 @@ func main() {
 	seed  := flag.Int64("seed", 1, "Random seed to use")
 	
 	flag.Parse()
+	//fmt.Printf("CMD = %s\n", *cmd)
 	
 	//rand.Seed(time.Now().UnixNano()) 
 	rand.Seed(*seed)

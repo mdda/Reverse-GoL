@@ -340,7 +340,7 @@ func create_submission(fname string) {
 			if only_allow_for_seed_equals>0 && seed!=only_allow_for_seed_equals {
 				continue
 			}
-			if !(seed==1 || seed==2) {
+			if !(seed==1 || seed==2 || seed==3) {
 				continue
 			}
 			
@@ -355,8 +355,8 @@ func create_submission(fname string) {
 			// Figure out whether this is going to be the best board for tie-breaking
 			this_is_better_than_current_best := !best.valid // This picks up the first one immediately
 			
-			// If we got the answer quicker, or ended up with fewer errors, this is probably better
-			if iter<best.iter || mtef<best.mtef { 
+			// If we ended up with fewer errors, or got to the same level, but quicker, this is probably better
+			if mtef<best.mtef || (mtef<best.mtef && iter<best.iter) { 
 				this_is_better_than_current_best=true
 			}
 			
@@ -378,8 +378,9 @@ func create_submission(fname string) {
 		
 		// Ok, so now let's figure out a board from these stats that's a better guess
 		guess_board := NewBoard_BoolPacked(board_width, board_height)
-		//guess_board.ThresholdStats(stats, 50) // This reflects just the best
-		guess_board.ThresholdStats(stats, 65) // This needs 2/2
+		//guess_board.ThresholdStats(stats, 50) // This reflects (just the best for n=2), (majority for 3), (majority+boost for 4)
+		guess_board.ThresholdStats(stats, 85) // This reflects (all for n=2), (all for n=3), (all for n=4)
+		//guess_board.ThresholdStats(stats, 65) // This needs 2/2
 		//fmt.Println(guess_board)
 		
 		// This implements a filter
