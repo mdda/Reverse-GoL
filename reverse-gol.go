@@ -326,7 +326,7 @@ const currently_running_version int = 1002
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
-	cmd_type:= flag.String("type", "", "create:{fake_training_data|training_set_transitions|synthetic_transitions}, db:{test|insert_problems}, visualize:{data|ga}")
+	cmd_type:= flag.String("type", "", "create:{fake_training_data|training_set_transitions|synthetic_transitions}, db:{test|insert_problems}, visualize:{data|ga}, submit:{kaggle|fakescore}")
 	
 	delta := flag.Int("delta", 0, "Number of steps between start and end")
 	seed  := flag.Int64("seed", 1, "Random seed to use")
@@ -446,12 +446,24 @@ func main() {
 	}
 	
 	if *cmd=="submit" {
-		// create submission
-		fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
-		//fmt.Println(fname)
-		create_submission(fname)
-	}
+		/// ./reverse-gol -cmd=submit -type=kaggle
+		if *cmd_type=="kaggle" {
+			// create submission
+			fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
+			//fmt.Println(fname)
+			create_submission(fname, false)
+		}
 	
+		/// ./reverse-gol -cmd=submit -type=fakescore
+		if *cmd_type=="fakescore" {
+			// create submission based on the fake training data, and the score it "a la kaggle" vs train_fake.csv
+			fname := fmt.Sprintf("submissions/training-fake_%s.csv", time.Now().Format("2006-01-02_15-04"))
+			create_submission(fname, true)
+			
+			score := determine_kaggle_score("data/train_fake.csv", fname)
+			fmt.Printf("\nKaggle equivalent score should be : %8.6f\n", score)
+		}
+	}
 	//fmt.Printf("Random #%3d\n", rand.Intn(1000))
 }
 

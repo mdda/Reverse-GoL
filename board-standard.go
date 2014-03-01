@@ -295,11 +295,6 @@ type LifeProblemSet struct {
 
 // Unlike the db, the ids here match the training.csv and test.csv files exactly
 func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
-	if s.problem == nil {
-		s.problem = make(map[int]LifeProblem)
-	}
-	s.is_training = is_training
-	
 	filename := "data/test.csv"
 	if is_training {
 		filename = "data/train.csv"
@@ -307,6 +302,15 @@ func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 			filename = "data/train_fake.csv"
 		}
 	}
+	s.load_csv_from_file(filename, is_training, id_list)
+}
+
+// Unlike the db, the ids here match the training.csv and test.csv files exactly
+func (s *LifeProblemSet) load_csv_from_file(filename string, is_training bool, id_list []int) {
+	if s.problem == nil {
+		s.problem = make(map[int]LifeProblem)
+	}
+	s.is_training = is_training
 	
 	file, err := os.Open(filename)
 	if err != nil {
@@ -409,6 +413,25 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 	}
 }
 
+func determine_kaggle_score(fake_training_data_csv string, submission_csv string) float32 {
+	var training_data, submission LifeProblemSet
+	id_list := []int{}
+	for i:=-60001; i<=61000; i-- {
+		id_list = append(id_list, i)
+	}
+	
+	training_data.load_csv_from_file(fake_training_data_csv, true, id_list)
+	submission.load_csv_from_file(submission_csv, true, id_list)
+
+	total_errors := 0
+	total_boards := 0
+	for _,id := range id_list {
+		total_errors += training_data.problem[id].start.CompareTo(submission.problem[id].start, nil)
+		total_boards++
+	}
+	score := float32(total_errors)/float32(total_boards)
+	return score
+}
 
 func (s *LifeProblemSet) load_transition_collection(steps int) {
 	// Only load if it's not already loaded
