@@ -416,7 +416,7 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 func determine_kaggle_score(fake_training_data_csv string, submission_csv string) float32 {
 	var training_data, submission LifeProblemSet
 	id_list := []int{}
-	for i:=-60001; i>=-61000; i-- { // Careful of the signs!
+	for i:=60001; i<=61000; i++ { // This is in CSV-land so all ids are positive
 		id_list = append(id_list, i)
 	}
 	
