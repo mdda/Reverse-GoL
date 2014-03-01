@@ -299,7 +299,7 @@ func create_submission(fname string, is_training bool) {
 	}
 	
 	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
-	only_submit_for_steps_equals=5
+	only_submit_for_steps_equals=6
 
 	only_allow_for_seed_equals  :=-1 // Set this for +ve to filter submission to include only specific seed answers (rest are zeroed as a base-line)
 	//only_allow_for_seed_equals  =1
@@ -373,7 +373,8 @@ func create_submission(fname string, is_training bool) {
 			if only_allow_for_seed_equals>0 && seed!=only_allow_for_seed_equals {
 				continue
 			}
-			if !(seed==1 || seed==2 || seed==3) {
+			//if !(seed==1 || seed==2 || seed==3) {
+			if !(seed==1) {
 				continue
 			}
 			
