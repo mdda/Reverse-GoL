@@ -14,7 +14,7 @@ import (
 	"io"
 	"os"
 	"strconv"
-
+	"strings"
 )
 
 /*
@@ -69,19 +69,27 @@ func create_list_of_problems_in_db() {
 	
 	//db.Exec("DELETE FROM PROBLEMS")
 	
-	ins, err := db.Prepare("INSERT INTO problems SET id=?, steps=?, solution_count=?")
+	sel, err := db.Prepare("SELECT id FROM problems WHERE id=?")
 	if err != nil {
-		fmt.Println("Insert Prepare Error:", err)
+		fmt.Println("Select Prepare Error:", err)
 		return
 	}
+	defer sel.Close()
 	
-	for i,f := range []string{"data/test.csv", "data/train.csv", } {
-		fmt.Printf("Opening %s - %d\n", f, i)
+	ins, err_ins := db.Prepare("INSERT INTO problems SET id=?, steps=?, solution_count=?")
+	if err_ins != nil {
+		fmt.Println("Insert Prepare Error:", err_ins)
+		return
+	}
+	defer ins.Close()
+	
+	for _,f := range []string{"data/test.csv", "data/train.csv", "data/train_fake.csv", } {
+		fmt.Printf("Opening %s\n", f)
 		
 		file, err := os.Open(f)
 		if err != nil {
-			fmt.Println("Error:", err)
-			return
+			fmt.Println("File Opening Error:", err)
+			continue // If file not found, try the next one
 		}
 		defer file.Close()
 		
@@ -105,14 +113,31 @@ func create_list_of_problems_in_db() {
 			id, _ := strconv.Atoi(record[0])
 			steps, _ := strconv.Atoi(record[1])
 			
-			if i>0 {
+			if !strings.HasSuffix(f, "/test.csv") {
 				// This is training data : Let's give it a negative id to avoid confusion
 				id = -id
 			}
-			_, err = ins.Exec(id, steps, 0)
-			if err != nil {
-				fmt.Println("Insert Error:", err)
+			
+			existing_rows, err_row := sel.Query(id)
+			if err_row != nil {
+				fmt.Println("Select Error:", err)
 				return
+			}
+			
+			found:=false
+			for existing_rows.Next() {
+				found=true
+			}
+			
+			if !found {
+				// Only insert a new row if the row was not found
+				fmt.Printf("Inserting row %d\n", id)
+				
+				_, err = ins.Exec(id, steps, 0)
+				if err != nil {
+					fmt.Println("Insert Error:", err)
+					return
+				}
 			}
 		}
 	}
@@ -147,6 +172,7 @@ func list_of_interesting_problems_from_db(steps int, count int, is_training bool
 		fmt.Println("Update 'currently_processing' Prepare Error:", err)
 		return problem_list
 	}
+	defer update.Close()
 	
 	for rows.Next() {
 		var id, steps, solution_count,currently_processing int
@@ -293,7 +319,8 @@ func create_submission(fname string) {
 		fmt.Println("Query solutions prepare Error:", err)
 		return
 	}
-	
+	defer query.Close()
+
 	count_ids_found, count_zeroes_submitted := 0,0
 	for _, id := range id_list {
 		rows, err := query.Query(id)

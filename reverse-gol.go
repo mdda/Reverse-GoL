@@ -143,12 +143,11 @@ func main_visualize_density() {
 	image.save("images/density.png")
 }
 
-func main_population_score() {
+func main_population_score(is_training bool, id int) {
 	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
 	
 	var kaggle LifeProblemSet
-	id := 58
-	kaggle.load_csv(true, []int{id})
+	kaggle.load_csv(is_training, []int{id}) // Load from the training set
 
 	problem := kaggle.problem[id]
 	
@@ -323,13 +322,17 @@ func main_create_fake_training_data() {
 const currently_running_version int = 1002
 
 func main() {
-	cmd:= flag.String("cmd", "", "Required : {run|submit|create}")
-	cmd_type:= flag.String("type", "", "{fake_training_data}")
+	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
+	cmd_type:= flag.String("type", "", "create:{fake_training_data}, db:{test|insert_problems}, visualize:{ga}")
 	
-	delta := flag.Int("delta", 0, "delta=%d, number of steps between start and end")
-	count := flag.Int("count", 0, "Number of ids to process")
-	training_only := flag.Bool("train", false, "Act on training set (default=false, i.e. test set)")
-	seed  := flag.Int64("seed", 1, "Random seed to use")
+	delta := flag.Int("delta", 0, "-delta=%d, number of steps between start and end")
+	seed  := flag.Int64("seed", 1, "-seed=1, random seed to use")
+
+	id := flag.Int("id", 0, "-id=%d, specific id to examine")
+	training_only := flag.Bool("training", false, "-training={true|false}, act on training set (default=false, i.e. test set)")
+
+	count := flag.Int("count", 0, "-count=%d, number of ids to process")
+
 	
 	flag.Parse()
 	//fmt.Printf("CMD = %s\n", *cmd)
@@ -350,7 +353,10 @@ func main() {
 			test_open_db()
 		}
 		
-		//create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
+		/// ./reverse-gol -cmd=db -type=insert_problems
+		if *cmd_type=="insert_problems" {
+			create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
+		}
 		
 		//reset_all_currently_processing(-1)
 	}
@@ -373,14 +379,23 @@ func main() {
 		//fmt.Println(probs)
 		
 	}
-	
+
+	if *cmd=="visualize" {
+		/// ./reverse-gol -cmd=visualize -type=ga -id=58 -training=true
+		if *cmd_type=="ga" {
+			if *id<=0 {
+				fmt.Println("Need to specify '-id=%d'")
+				flag.Usage()
+				return
+			}
+			main_population_score(*training_only, *id)
+		}
+	}
+
 	if *cmd=="run" {
 		// To force DB to solve the 2 training problems : 50 and 54 : 
 		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
-		//steps:=5 // This is delta
-		//problem_count_requested:=2 
-		//training_only := true
-		
+		// ./reverse-gol -cmd=run -delta=5 -count=200 -training=true
 		
 		/// ./reverse-gol -cmd=run -delta=4 -count=10000
 		if *delta<=0 {
