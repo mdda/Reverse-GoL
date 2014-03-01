@@ -31,8 +31,10 @@ CREATE TABLE `solutions` (
 	`iter` int(11) NOT NULL, 
 	`seed` int(11) NOT NULL, 
 	`version` int(11) NOT NULL, 
+	`ones_i` int(11) DEFAULT NULL, 
 	`mtsi` int(11) DEFAULT NULL, 
 	`mtei` int(11) NOT NULL, 
+	`ones_f` int(11) DEFAULT NULL, 
 	`mtsf` int(11) DEFAULT NULL, 
 	`mtef` int(11) NOT NULL, 
 	`start` text NOT NULL, 
@@ -255,14 +257,16 @@ func save_solution_to_db(id int, steps int, seed int, individual_result *Individ
 	
 	// insert into the solutions db
 	_, err := db.Exec("INSERT INTO solutions SET id=?, steps=?, seed=?, version=?, iter=?,"+
-						" mtsi=?, mtei=?,"+
-						" mtsf=?, mtef=?,"+
+						" ones_i=?, mtsi=?, mtei=?,"+
+						" ones_f=?, mtsf=?, mtef=?,"+
 						" start=?",
 						id, steps, seed,
 						currently_running_version, 
 						individual_result.iter, 
+						individual_result.true_start_1s, 
 						individual_result.mismatch_from_true_start_initial, 
 						individual_result.mismatch_from_true_end_initial, 
+						individual_result.true_end_1s, 
 						individual_result.mismatch_from_true_start_final, 
 						individual_result.mismatch_from_true_end_final, 
 						individual_result.individual.start.toCompactString(),

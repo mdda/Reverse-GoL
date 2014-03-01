@@ -200,6 +200,7 @@ type IndividualResult struct {
 	individual *Individual
 	mismatch_from_true_start_initial, mismatch_from_true_start_final int
 	mismatch_from_true_end_initial, mismatch_from_true_end_final int
+	true_start_1s, true_end_1s int
 	iter int
 }
 
@@ -220,8 +221,14 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 	var best_individual *Individual
 	best_individual_start := NewBoard_BoolPacked(board_width, board_height)
 	
-	mismatch_from_true_start_initial, mismatch_from_true_start_latest := -999,-999
-	mismatch_from_true_end_initial, mismatch_from_true_end_latest := 0,0
+	mismatch_from_true_start_initial, mismatch_from_true_start_latest, true_start_1s := -999,-999,-999
+	mismatch_from_true_end_initial, mismatch_from_true_end_latest, true_end_1s := 0,0,0
+	
+	empty_board := NewBoard_BoolPacked(board_width, board_height)
+	if lps.is_training {
+		true_start_1s = problem.start.CompareTo(empty_board, nil)
+	}
+	true_end_1s = problem.end.CompareTo(empty_board, nil)
 	
 	iter_max  := 2000
 	iter_last := 0
@@ -298,6 +305,9 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 		mismatch_from_true_start_final   : mismatch_from_true_start_latest,
 		mismatch_from_true_end_initial : mismatch_from_true_end_initial, 
 		mismatch_from_true_end_final   : mismatch_from_true_end_latest,
+		
+		true_start_1s:true_start_1s,
+		true_end_1s:true_end_1s,
 		
 		iter:iter_last,
 	}

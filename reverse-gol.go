@@ -326,15 +326,15 @@ const currently_running_version int = 1002
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
-	cmd_type:= flag.String("type", "", "create:{fake_training_data}, db:{test|insert_problems}, visualize:{data|ga}")
+	cmd_type:= flag.String("type", "", "create:{fake_training_data|training_set_transitions|synthetic_transitions}, db:{test|insert_problems}, visualize:{data|ga}")
 	
-	delta := flag.Int("delta", 0, "-delta=%d, number of steps between start and end")
-	seed  := flag.Int64("seed", 1, "-seed=1, random seed to use")
+	delta := flag.Int("delta", 0, "Number of steps between start and end")
+	seed  := flag.Int64("seed", 1, "Random seed to use")
 
-	id := flag.Int("id", 0, "-id=%d, specific id to examine")
-	training_only := flag.Bool("training", false, "-training={true|false}, act on training set (default=false, i.e. test set)")
+	id := flag.Int("id", 0, "Specific id to examine")
+	training_only := flag.Bool("training", false, "Act on training set (default=false, i.e. test set)")
 
-	count := flag.Int("count", 0, "-count=%d, number of ids to process")
+	count := flag.Int("count", 0, "Number of ids to process")
 
 	
 	flag.Parse()
@@ -373,13 +373,19 @@ func main() {
 			main_create_fake_training_data()
 			
 			// Prevent solving of actual training set (since this is where our state came from, so it's not particularly helpful
-			// UPDATE problems SET solution_count=5 WHERE id>-60000  and id<0
+			// UPDATE problems SET solution_count=100 WHERE id>-60000  and id<0
 			// UPDATE problems SET solution_count=0 WHERE id>-100000 and id<-60000
 		}
 		
-		//main_create_stats(1)
-		//main_create_stats_all()
-		//main_read_stats(1)
+		if *cmd_type=="training_set_transitions" {
+			//main_create_stats(1)
+			//main_create_stats_all()
+			//main_read_stats(1)
+		}
+		
+		if *cmd_type=="synthetic_transitions" {
+			
+		}
 		
 	}
 
