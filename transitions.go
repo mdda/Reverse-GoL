@@ -210,7 +210,65 @@ type TransitionCollectionList struct {
 	pre map[Patch]PatchList
 }
 
-const TransitionCollectionFileStrFmt = "stats/transition-%d.csv"
+func (t *TransitionCollectionMap) AddTransitionToMap(start, end Board_BoolPacked) int {
+	existing_map_count:=0
+	
+	// Go through the end and start boards in lock-step
+	// Create ASAP the mapping end->start
+	for y:=0; y<end.h; y++ {
+		for x:=0; x<end.w; x++ {
+			p := start.MakePatch(x,y)
+			q := end.MakePatch(x,y)
+			
+			if false {
+				q_test, q_orig := q, q
+				
+				q_test = q_test.Flip_LR()
+				q_test = q_test.Flip_UD()
+				q_test = q_test.Flip_LR()
+				q_test = q_test.Flip_UD()
+				
+				if q_test != q_orig {
+					fmt.Printf("PATCH FLIP WHOOPS!\n") 
+					fmt.Println(q_orig) 
+					fmt.Println(q_test) 
+				}
+			}
+			
+			oriented := q.BestOrientation()
+			q = oriented.patch
+			
+			// Do the same (best) orientation maneuver on p
+			if oriented.flip_ud {
+				p = p.Flip_UD()
+			}
+			if oriented.flip_lr {
+				p = p.Flip_LR()
+			}
+			
+			if len(t.pre[q])>0 {
+				// If end_rep exists : no need to create map, it's already there
+				//fmt.Printf("id[%5d]@(%2d,%2d) exists in map (prior len:%5d) = %25b\n", id, x ,y, len(t.pre[q]), q)
+				existing_map_count++
+			} else {
+				// If end_rep does not exist : Make [start_rep] the array dangling off end_rep
+				//fmt.Printf("id[%5d]@(%2d,%2d) creating fresh map for %25b!\n", id, x,y, q)
+				t.pre[q] = make(PatchMap)
+			}
+			// Add start_rep to the map dangling off end_rep
+			t.pre[q][p]++
+			
+			/*
+			if q == 14336 { // This is '***'
+				fmt.Printf("Precursor found %8d:\n", int(p))
+				fmt.Println(p)  // This should be a vertical strip or '***' (depending on whether steps is odd or even)
+			}
+			*/
+		}
+	}
+	
+	return existing_map_count
+}
 
 func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int) {
 	if t.pre == nil {
@@ -256,8 +314,9 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 			start.LoadArray(record[2:402])
 			end.LoadArray(record[402:802])
 			
-			existing_map_count:=0
+			existing_map_count := t.AddTransitionToMap(start, end)
 			
+			/*
 			// Go through the end and start boards in lock-step
 			// Create ASAP the mapping end->start
 			for y:=0; y<end.h; y++ {
@@ -303,12 +362,12 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 					// Add start_rep to the map dangling off end_rep
 					t.pre[q][p]++
 					
-					/*
+					// *
 					if q == 14336 { // This is '***'
 						fmt.Printf("Precursor found %8d:\n", int(p))
 						fmt.Println(p)  // This should be a vertical strip or '***' (depending on whether steps is odd or even)
 					}
-					*/
+					// * /
 				}
 			}
 			fmt.Printf("id[%5d].steps=%d - existing=%3d/400\n", id, steps, existing_map_count) 
@@ -316,12 +375,69 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 				fmt.Println(end)
 				return
 			}
+			
+			*/
+			
 			record_count++
 		}
 	}
 	fmt.Printf("Total end-map count : %7d\n", len(t.pre)) 
 	fmt.Printf("Total record  count : %7d\n", record_count) 
 }
+
+func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max int) {
+	if t.pre == nil {
+		t.pre = make(map[Patch]PatchMap)
+	}
+	
+	start := NewBoard_BoolPacked(board_width, board_height)
+	end   := NewBoard_BoolPacked(board_width, board_height)
+	
+	empty := NewBoard_BoolPacked(board_width, board_height)
+	for iter:=0; iter<iter_max; iter++ {
+		for found:=false; !found; {
+			// create a board with a random initial density U(0..1) 
+			uniform := rand.Float32()
+			fmt.Printf("id[%6d].steps=%d, Uniform Density = %6.4f\n", id, steps, uniform)
+			
+			initial := NewBoard_BoolPacked(board_width, board_height)
+			initial.UniformRandom(uniform)
+			//fmt.Println(initial)
+			
+			// transition it forwards 5 times
+			l := NewBoardIterator(board_width, board_height)
+			l.current.CopyFrom(initial)
+			
+			l.Iterate(5)
+			
+			// Now l.current is the actual start board
+			start.CopyFrom(l.current) // this overwrites...
+			//fmt.Println(start)
+			
+			// iterate forward the appropriate number of steps
+			l.Iterate(steps)
+			
+			// Now l.current is the actual ending board
+			end.CopyFrom(l.current)
+			//fmt.Println(end)
+			
+			// if end is not empty, then we've succeeded
+			if end.CompareTo(empty, nil) > 0 {
+				found = true
+				//fmt.Println("Success!")
+			}
+		}
+		
+		existing_map_count := t.AddTransitionToMap(start, end)
+		
+		fmt.Printf("id[%5d].steps=%d - existing=%3d/400\n", id, steps, existing_map_count) 
+	}
+	fmt.Printf("Total end-map count : %7d\n", len(t.pre)) 
+	fmt.Printf("Total record  count : %7d\n", iter_count) 
+}
+
+
+const TransitionCollectionFileStrFmt = "stats/transition-%d.csv"
 
 type ByFreqDesc []PatchFreq
 func (a ByFreqDesc) Len() int           { return len(a) }
