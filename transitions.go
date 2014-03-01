@@ -210,7 +210,7 @@ type TransitionCollectionList struct {
 	pre map[Patch]PatchList
 }
 
-func (t *TransitionCollectionMap) AddTransitionToMap(start, end Board_BoolPacked) int {
+func (t *TransitionCollectionMap) AddTransitionToMap(start, end *Board_BoolPacked) int {
 	existing_map_count:=0
 	
 	// Go through the end and start boards in lock-step
@@ -370,13 +370,13 @@ func (t *TransitionCollectionMap) TrainingCSV_to_stats(f string, step_filter int
 					// * /
 				}
 			}
-			fmt.Printf("id[%5d].steps=%d - existing=%3d/400\n", id, steps, existing_map_count) 
 			if existing_map_count>=400*1000 {
 				fmt.Println(end)
 				return
 			}
 			
 			*/
+			fmt.Printf("id[%5d].steps=%d - existing=%3d/400\n", id, steps, existing_map_count) 
 			
 			record_count++
 		}
@@ -398,7 +398,7 @@ func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max
 		for found:=false; !found; {
 			// create a board with a random initial density U(0..1) 
 			uniform := rand.Float32()
-			fmt.Printf("id[%6d].steps=%d, Uniform Density = %6.4f\n", id, steps, uniform)
+			fmt.Printf("id[synth=%d].steps=%d, Uniform Density = %6.4f\n", iter, steps, uniform)
 			
 			initial := NewBoard_BoolPacked(board_width, board_height)
 			initial.UniformRandom(uniform)
@@ -430,10 +430,10 @@ func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max
 		
 		existing_map_count := t.AddTransitionToMap(start, end)
 		
-		fmt.Printf("id[%5d].steps=%d - existing=%3d/400\n", id, steps, existing_map_count) 
+		fmt.Printf("id[synth=%5d].steps=%d - existing=%3d/400\n", iter, steps, existing_map_count) 
 	}
 	fmt.Printf("Total end-map count : %7d\n", len(t.pre)) 
-	fmt.Printf("Total record  count : %7d\n", iter_count) 
+	fmt.Printf("Total record  count : %7d\n", iter_max) 
 }
 
 
