@@ -240,6 +240,51 @@ type LifeProblem struct {
 	// Finished, iterations, confidence, etc
 }
 
+func (problem LifeProblem) CreateFake(id int, steps int) {
+	problem.id = id
+	problem.steps = steps
+	
+	start := NewBoard_BoolPacked(board_width, board_height)
+	end   := NewBoard_BoolPacked(board_width, board_height)
+	
+	empty := NewBoard_BoolPacked(board_width, board_height)
+	for found:=false; !found; {
+		// create a board with a random initial density U(0..1) 
+		uniform := rand.Float32()
+		fmt.Printf("Uniform Density = %6.4f\n", uniform)
+		
+		initial := NewBoard_BoolPacked(board_width, board_height)
+		initial.UniformRandom(uniform)
+		fmt.Println(initial)
+		
+		// transition it forwards 5 times
+		l := NewBoardIterator(board_width, board_height)
+		l.current.CopyFrom(initial)
+		
+		l.Iterate(5)
+		
+		// Now l.current is the actual start board
+		start.CopyFrom(l.current) // this overwrites...
+		fmt.Println(start)
+		
+		// iterate forward the appropriate number of steps
+		l.Iterate(steps)
+		
+		// Now l.current is the actual ending board
+		end.CopyFrom(l.current)
+		fmt.Println(end)
+		
+		// if end is not empty, then we've succeeded
+		if end.CompareTo(empty, nil) > 0 {
+			found = true
+			fmt.Println("Success!")
+		}
+	}
+	
+	problem.start = start
+	problem.end = end
+}
+
 type LifeProblemSet struct {
 	problem map[int]LifeProblem
 	is_training bool
@@ -247,7 +292,7 @@ type LifeProblemSet struct {
 	transition_collection []TransitionCollectionList
 }
 
-// Unlike the db, the ids hear match the training.csv and test.csv files exactly
+// Unlike the db, the ids here match the training.csv and test.csv files exactly
 func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 	if s.problem == nil {
 		s.problem = make(map[int]LifeProblem)
@@ -324,6 +369,41 @@ func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 	}
 }
 
+// Unlike the db, the ids here match the csv files exactly
+func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
+	file, err := os.Create(filename)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer file.Close()
+
+	// Header
+	file.WriteString("id,delta,")
+	for i:=1; i<=400; i++ {
+		file.WriteString(fmt.Sprintf(",start.%d", i))
+	}
+	for i:=1; i<=400; i++ {
+		file.WriteString(fmt.Sprintf(",stop.%d", i))
+	}
+	file.WriteString("\n")
+
+	for _, problem := range s.problem {
+		file.WriteString(fmt.Sprintf("%d,%d", problem.id, problem.steps))
+		
+		file.WriteString(problem.start.toCSV())
+		file.WriteString(problem.end.toCSV())
+		file.WriteString("\n")
+	}
+}
+
+
+
+
+
+
+
+
 func (s *LifeProblemSet) load_transition_collection(steps int) {
 	// Only load if it's not already loaded
 	if s.transition_collection == nil {
@@ -335,6 +415,7 @@ func (s *LifeProblemSet) load_transition_collection(steps int) {
 		s.transition_collection[steps].LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 	}
 }
+
 
 type ImageSet struct {
 	im                       *image.RGBA
