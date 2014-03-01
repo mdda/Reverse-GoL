@@ -380,7 +380,7 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 	defer file.Close()
 
 	// Header
-	file.WriteString("id,delta,")
+	file.WriteString("id,delta")
 	for i:=1; i<=400; i++ {
 		file.WriteString(fmt.Sprintf(",start.%d", i))
 	}
