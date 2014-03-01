@@ -308,15 +308,16 @@ func main_create_fake_training_data() {
 	
 	num_per_step:=200
 	
-	base := 100*1000
+	base := 60*1000 + 1 // i.e. 60k+1 onwards
 	for steps:=1; steps<=5; steps++ {
 		for id:=base; id<base+num_per_step; id++ {
-			lps.problem[id].CreateFake(id, steps)
-			return
+			problem := LifeProblem{id:id, steps:steps}
+			problem.CreateFake()
+			lps.problem[id]=problem
 		}
 		base+=num_per_step
 	}
-	//lps.save_csv("data/train_fake.csv")
+	lps.save_csv("data/train_fake.csv")
 }
 
 const currently_running_version int = 1002
@@ -362,10 +363,15 @@ func main() {
 		/// ./reverse-gol -cmd=create -type=fake_training_data
 		if *cmd_type=="fake_training_data" {
 			main_create_fake_training_data()
+			
+			// Prevent solving of actual training set (since this is where our state came from, so it's not particularly helpful
+			// UPDATE problems SET solution_count=5 WHERE id>-60000  and id<0
+			// UPDATE problems SET solution_count=0 WHERE id>-100000 and id<-60000
 		}
 		
 		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
 		//fmt.Println(probs)
+		
 	}
 	
 	if *cmd=="run" {
@@ -375,6 +381,8 @@ func main() {
 		//problem_count_requested:=2 
 		//training_only := true
 		
+		
+		/// ./reverse-gol -cmd=run -delta=4 -count=10000
 		if *delta<=0 {
 			fmt.Println("Need to specify '-delta=%d'")
 			flag.Usage()

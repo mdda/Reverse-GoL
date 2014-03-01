@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"sort"
 )
 
 import (
@@ -240,9 +241,9 @@ type LifeProblem struct {
 	// Finished, iterations, confidence, etc
 }
 
-func (problem LifeProblem) CreateFake(id int, steps int) {
-	problem.id = id
-	problem.steps = steps
+func (problem *LifeProblem) CreateFake() {
+	id := problem.id
+	steps := problem.steps
 	
 	start := NewBoard_BoolPacked(board_width, board_height)
 	end   := NewBoard_BoolPacked(board_width, board_height)
@@ -251,11 +252,11 @@ func (problem LifeProblem) CreateFake(id int, steps int) {
 	for found:=false; !found; {
 		// create a board with a random initial density U(0..1) 
 		uniform := rand.Float32()
-		fmt.Printf("Uniform Density = %6.4f\n", uniform)
+		fmt.Printf("id[%6d].steps=%d, Uniform Density = %6.4f\n", id, steps, uniform)
 		
 		initial := NewBoard_BoolPacked(board_width, board_height)
 		initial.UniformRandom(uniform)
-		fmt.Println(initial)
+		//fmt.Println(initial)
 		
 		// transition it forwards 5 times
 		l := NewBoardIterator(board_width, board_height)
@@ -265,19 +266,19 @@ func (problem LifeProblem) CreateFake(id int, steps int) {
 		
 		// Now l.current is the actual start board
 		start.CopyFrom(l.current) // this overwrites...
-		fmt.Println(start)
+		//fmt.Println(start)
 		
 		// iterate forward the appropriate number of steps
 		l.Iterate(steps)
 		
 		// Now l.current is the actual ending board
 		end.CopyFrom(l.current)
-		fmt.Println(end)
+		//fmt.Println(end)
 		
 		// if end is not empty, then we've succeeded
 		if end.CompareTo(empty, nil) > 0 {
 			found = true
-			fmt.Println("Success!")
+			//fmt.Println("Success!")
 		}
 	}
 	
@@ -388,7 +389,15 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 	}
 	file.WriteString("\n")
 
+	// This file should be in id-ascending order
+	ids := []int{}
 	for _, problem := range s.problem {
+		ids = append(ids, problem.id)
+	}
+	sort.Ints(ids)
+
+	for _, id := range ids {
+		problem := s.problem[id]
 		file.WriteString(fmt.Sprintf("%d,%d", problem.id, problem.steps))
 		
 		file.WriteString(problem.start.toCSV())
@@ -396,12 +405,6 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 		file.WriteString("\n")
 	}
 }
-
-
-
-
-
-
 
 
 func (s *LifeProblemSet) load_transition_collection(steps int) {
