@@ -303,6 +303,9 @@ func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 	filename := "data/test.csv"
 	if is_training {
 		filename = "data/train.csv"
+		if id_list[0]>50000 { 
+			filename = "data/train_fake.csv"
+		}
 	}
 	
 	file, err := os.Open(filename)
