@@ -268,6 +268,9 @@ func create_submission(fname string) {
 	
 	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
 	only_submit_for_steps_equals=5
+
+	only_allow_for_seed_equals  :=-1 // Set this for +ve to filter submission to include only specific seed answers (rest are zeroed as a base-line)
+	//only_allow_for_seed_equals  =1
 	
 	db := get_db_connection()
 	defer db.Close()
@@ -306,6 +309,9 @@ func create_submission(fname string) {
 			valid bool
 		}
 		best := BestRow{valid:false}
+		id_found:=false
+		
+		submit_zero_for_this_id:=false
 		stats := NewBoardStats(board_width, board_height)
 		for rows.Next() {
 			var start string
@@ -316,9 +322,25 @@ func create_submission(fname string) {
 				fmt.Println("Query start for id=%d Error:", id, err)
 				return 
 			}
+			id_found = true
+
+			// This zeroes out whole id if condition on one of it's rows fails
+			if only_submit_for_steps_equals>0 && steps!=only_submit_for_steps_equals {
+				submit_zero_for_this_id=true
+				continue
+			}
 			
-			// Perhaps there are some entries we want to exclude altogether 
+			// This ignores this particular row for this id
+			// If it's the only row, then we'll end up with a zero for this id
+			//   but that won't be included in the count_zeroes_submitted counter
 			if version==999 { 
+				continue
+			}
+			
+			if only_allow_for_seed_equals>0 && seed!=only_allow_for_seed_equals {
+				continue
+			}
+			if !(seed==1 || seed==2) {
 				continue
 			}
 			
@@ -340,30 +362,31 @@ func create_submission(fname string) {
 			
 			if this_is_better_than_current_best {
 				best = BestRow{start_board, steps, iter, seed, version, mtei, mtef, true}
+				fmt.Printf("Best @%5d now %v\n", id, best)
 			}
 		}
 		
 		// Now add a single instance of best board to the stats to act as a tie-breaker 
 		if best.valid {
 			best.start_board.AddToStats(stats)
-			count_ids_found++ // We had 1 usable row at least
+		}
+		if id_found {
+			count_ids_found++
 		}
 		
 		//fmt.Println(stats)
 		
 		// Ok, so now let's figure out a board from these stats that's a better guess
 		guess_board := NewBoard_BoolPacked(board_width, board_height)
-		guess_board.ThresholdStats(stats, 50)
+		//guess_board.ThresholdStats(stats, 50) // This reflects just the best
+		guess_board.ThresholdStats(stats, 65) // This needs 2/2
 		//fmt.Println(guess_board)
 		
-		// This implements a filter (if only_submit_for_steps_equals tells us to do so)
-		if only_submit_for_steps_equals>0 && (!best.valid || best.steps!=only_submit_for_steps_equals) {
+		// This implements a filter
+		if submit_zero_for_this_id {
 			// Instead of the true guess, zero it all out
 			guess_board = NewBoard_BoolPacked(board_width, board_height)
 			count_zeroes_submitted++
-			if !best.valid {
-				count_ids_found++ // This row was made 'usable' (i.e. created as all zeroes), so adjust counter
-			}
 		}
 		
 		file.WriteString(fmt.Sprintf("%d", id))
@@ -393,14 +416,19 @@ func create_submission(fname string) {
  * How many of each type do we have ::
  * select steps,count(id) from solutions where id>0 group by steps
  * 
- * Fix early aborted runs :: 
- * update problems set currently_processing=0 where id>0 and steps=3
+ * Diagnose and Fix early aborted runs :: 
+ * select steps,count(id) from problems where currently_processing>0 and id>0 group by steps
+ * update problems set currently_processing=0 where id>0
  * 
  * What is the state of all solutions ::
  * select steps,solution_count,count(id) from problems where id>0 group by steps, solution_count order by steps,solution_count
  * 
  * Where are there holes to fill ::
  * select steps,solution_count,count(id) from problems where id>0 and solution_count=0 group by steps, solution_count order by steps
+ * 
+ * What is the distribution of solutions
+ * select steps,solution_count,count(id) from problems where id>0 group by steps, solution_count order by steps, solution_count
+ * select steps,seed,count(id) from solutions where id>0 group by steps, seed order by steps, seed
  * 
  * What is currently being worked on ::
  * select steps,solution_count,count(id) from problems where id>0 and currently_processing=1 group by steps, solution_count order by steps

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
+	"flag"
 )
 
 
@@ -302,8 +303,17 @@ func main_read_stats(steps int) {
 const currently_running_version int = 1002
 
 func main() {
+	cmd:= flag.String("cmd", "", "Required : {run|submit}")
+	
+	delta := flag.Int("delta", 0, "delta=%d, number of steps between start and end")
+	count := flag.Int("count", 0, "Number of ids to process")
+	training_only := flag.Bool("train", false, "Act on training set (default=false, i.e. test set)")
+	seed  := flag.Int64("seed", 1, "Random seed to use")
+	
+	flag.Parse()
+	
 	//rand.Seed(time.Now().UnixNano()) 
-	rand.Seed(1)
+	rand.Seed(*seed)
 	
 	//main_timer()
 	//main_visualize_density()
@@ -316,7 +326,7 @@ func main() {
 	
 	//main_population_score()
 	
-	if false {
+	if *cmd=="run" {
 		//test_open_db()
 		//return
 		
@@ -333,16 +343,27 @@ func main() {
 		//problem_count_requested:=2 
 		//training_only := true
 		
-		steps:=3 // This is delta
-		//problem_count_requested:=10000 // This may be truncated, if there are less available ids (some may be processing already)
-		problem_count_requested:=1000 // This may be truncated, if there are less available ids (some may be processing already)
-		training_only := false
-		pick_problems_from_db_and_solve_them(steps, problem_count_requested, training_only)
+		if *delta<=0 {
+			fmt.Println("Need to specify '-delta=%d'")
+			flag.Usage()
+			return
+		}
+		if *count<=0 {
+			fmt.Println("Need to specify '-count=%d'")
+			flag.Usage()
+			return
+		}
+		if *training_only {
+			fmt.Println("Running on Training Data")
+		}
+		problem_count_requested:=*count // This may be truncated, if there are less available ids (some may be processing already)
+		steps := *delta
+		pick_problems_from_db_and_solve_them(steps, problem_count_requested, *training_only)
 	}
 	
-	if true {
+	if *cmd=="submit" {
 		// create submission
-		fname := fmt.Sprintf("data/submission_mdda_%s.csv", time.Now().Format("2006-01-02_03-04"))
+		fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
 		//fmt.Println(fname)
 		create_submission(fname)
 	}
