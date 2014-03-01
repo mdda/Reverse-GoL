@@ -424,7 +424,11 @@ func create_submission(fname string, is_training bool) {
 			count_zeroes_submitted++
 		}
 		
-		file.WriteString(fmt.Sprintf("%d", id))
+		id_positive:=id
+		if is_training { // This is for CSV-land so all ids are positive
+			id_positive=-id
+		}
+		file.WriteString(fmt.Sprintf("%d", id_positive))
 		file.WriteString(guess_board.toCSV())
 		file.WriteString("\n")
 	}
