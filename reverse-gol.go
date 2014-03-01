@@ -74,7 +74,7 @@ func main_verify_training_examples(problem_offset int) {
 	for id := problem_offset; id < problem_offset+10; id++ {
 		id_list = append(id_list, id)
 	}
-	kaggle.load_csv(true, id_list)
+	kaggle.load_csv(is_training, id_list)
 	//fmt.Println(kaggle.problem[107].start)
 	//fmt.Println(kaggle.problem[107].end)
 
@@ -223,7 +223,11 @@ func main_population_score(is_training bool, id int) {
 				//l.current.AddToStats(bs_result)
 				individual.diff.AddToStats(bs_result)
 				
-				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}\n", iter, i, mismatch_from_true_start, mismatch_from_true_end) // , individual.start
+				show_best:=""
+				if i==0 {
+					show_best=" <<< best"
+				}
+				fmt.Printf("%4d.%3d : Mismatch vs true {start,end} = {%3d,%3d}%s\n", iter, i, mismatch_from_true_start, mismatch_from_true_end, show_best) // , individual.start
 				bs_result.MisMatchBy(mismatch_from_true_end)
 				
 				image.DrawStatsNext(bs_result)
@@ -380,10 +384,20 @@ func main() {
 	}
 
 	if *cmd=="visualize" {
-		/// ./reverse-gol -cmd=visualize -type=data -id=50
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=50
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=60001
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=60201
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=60401
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=60601
+		/// ./reverse-gol -cmd=visualize -type=data -training=true -id=60801
 		if *cmd_type=="data" {
 			if *id<=0 {
 				fmt.Println("Need to specify '-id=%d' as base id to view (will also show 9 following)")
+				flag.Usage()
+				return
+			}
+			if !*training_only {
+				fmt.Println("Need to specify '-training=true' (don't know start boards for test...)")
 				flag.Usage()
 				return
 			}
