@@ -302,11 +302,13 @@ func (s *LifeProblemSet) load_csv(is_training bool, id_list []int) {
 			filename = "data/train_fake.csv"
 		}
 	}
-	s.load_csv_from_file(filename, is_training, id_list)
+	s.load_csv_from_file(filename, is_training, true, id_list)
 }
 
 // Unlike the db, the ids here match the training.csv and test.csv files exactly
-func (s *LifeProblemSet) load_csv_from_file(filename string, is_training bool, id_list []int) {
+// is_training means that it contains {start[1-400],stop[1-400]} otherwise {stop[1-400]}
+// has_steps means there is a steps column (true for train+test CSVs, not for submission CSV)
+func (s *LifeProblemSet) load_csv_from_file(filename string, is_training bool, has_steps bool, id_list []int) {
 	if s.problem == nil {
 		s.problem = make(map[int]LifeProblem)
 	}
@@ -351,15 +353,24 @@ func (s *LifeProblemSet) load_csv_from_file(filename string, is_training bool, i
 		id, _ := strconv.Atoi(record[0])
 		if id_map[id] {
 			//fmt.Println(record) // record has the type []string
-			steps, _ := strconv.Atoi(record[1])
+			
+			steps:=0
+			var data []string
+			
+			if has_steps {
+				steps, _ = strconv.Atoi(record[1])
+				data = record[2:]
+			} else {
+				data = record[1:]
+			}
 
 			start := NewBoard_BoolPacked(board_width, board_height)
 			end := NewBoard_BoolPacked(board_width, board_height)
 			if is_training {
-				start.LoadArray(record[2:402])
-				end.LoadArray(record[402:802])
+				start.LoadArray(data[0:400])
+				end.LoadArray(data[400:800])
 			} else {
-				end.LoadArray(record[2:402])
+				end.LoadArray(data[0:400])
 			}
 
 			s.problem[id] = LifeProblem{
@@ -416,20 +427,25 @@ func (s *LifeProblemSet) save_csv(filename string) { // = "data/train_fake.csv"
 func determine_kaggle_score(fake_training_data_csv string, submission_csv string) float32 {
 	var training_data, submission LifeProblemSet
 	id_list := []int{}
-	for i:=60001; i<=61000; i++ { // This is in CSV-land so all ids are positive
-		id_list = append(id_list, i)
+	for id:=60001; id<=61000; id++ { // This is in CSV-land so all ids are positive
+		id_list = append(id_list, id)
 	}
 	
-	training_data.load_csv_from_file(fake_training_data_csv, true, id_list)
-	submission.load_csv_from_file(submission_csv, true, id_list)
+	training_data.load_csv_from_file(fake_training_data_csv, true, true, id_list)
+	//fmt.Println(training_data.problem[60001].start)
+	
+	// Mark is_training=false (only one block of data), and deny has_steps
+	submission.load_csv_from_file(submission_csv, false, false, id_list) 
+	//fmt.Println(submission.problem[60001].end)
 
 	total_errors := 0
 	total_boards := 0
 	for _,id := range id_list {
-		total_errors += training_data.problem[id].start.CompareTo(submission.problem[id].start, nil)
+		// This is a little bit of fakery, since the submission board is actually starts (in a one-datablock file format)
+		total_errors += training_data.problem[id].start.CompareTo(submission.problem[id].end, nil)
 		total_boards++
 	}
-	score := float32(total_errors)/float32(total_boards)
+	score := float32(total_errors)/float32(total_boards)/400.0
 	return score
 }
 
