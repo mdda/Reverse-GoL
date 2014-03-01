@@ -513,4 +513,7 @@ func create_submission(fname string, is_training bool) {
  * What is currently being worked on ::
  * select steps,solution_count,count(id) from problems where id>0 and currently_processing=1 group by steps, solution_count order by steps
  * 
+ * Clean out the solutions a little
+ * delete from solutions where id>0 and seed=4
+ * update problems set solution_count=3 where id>0 and solution_count=4 
  */
