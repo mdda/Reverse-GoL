@@ -66,10 +66,9 @@ func main_loader() {
 	}
 }
 
-func main_verify_training_examples() {
+func main_verify_training_examples(problem_offset int) {
 	var kaggle LifeProblemSet
-
-	problem_offset := 50
+	is_training := true // only makes sense on training_data...
 
 	id_list := []int{}
 	for id := problem_offset; id < problem_offset+10; id++ {
@@ -323,7 +322,7 @@ const currently_running_version int = 1002
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
-	cmd_type:= flag.String("type", "", "create:{fake_training_data}, db:{test|insert_problems}, visualize:{ga}")
+	cmd_type:= flag.String("type", "", "create:{fake_training_data}, db:{test|insert_problems}, visualize:{data|ga}")
 	
 	delta := flag.Int("delta", 0, "-delta=%d, number of steps between start and end")
 	seed  := flag.Int64("seed", 1, "-seed=1, random seed to use")
@@ -359,13 +358,12 @@ func main() {
 		}
 		
 		//reset_all_currently_processing(-1)
+		
+		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
+		//fmt.Println(probs)
 	}
 	
 	if *cmd=="create" {
-		//main_create_stats(1)
-		//main_create_stats_all()
-		//main_read_stats(1)
-		
 		/// ./reverse-gol -cmd=create -type=fake_training_data
 		if *cmd_type=="fake_training_data" {
 			main_create_fake_training_data()
@@ -375,12 +373,23 @@ func main() {
 			// UPDATE problems SET solution_count=0 WHERE id>-100000 and id<-60000
 		}
 		
-		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
-		//fmt.Println(probs)
+		//main_create_stats(1)
+		//main_create_stats_all()
+		//main_read_stats(1)
 		
 	}
 
 	if *cmd=="visualize" {
+		/// ./reverse-gol -cmd=visualize -type=data -id=50
+		if *cmd_type=="data" {
+			if *id<=0 {
+				fmt.Println("Need to specify '-id=%d' as base id to view (will also show 9 following)")
+				flag.Usage()
+				return
+			}
+			main_verify_training_examples(*id)
+		}
+		
 		/// ./reverse-gol -cmd=visualize -type=ga -id=58 -training=true
 		if *cmd_type=="ga" {
 			if *id<=0 {
