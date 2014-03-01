@@ -67,7 +67,7 @@ func create_list_of_problems_in_db() {
 	db := get_db_connection()
 	defer db.Close()
 	
-	db.Exec("DELETE FROM PROBLEMS")
+	//db.Exec("DELETE FROM PROBLEMS")
 	
 	ins, err := db.Prepare("INSERT INTO problems SET id=?, steps=?, solution_count=?")
 	if err != nil {
@@ -75,7 +75,7 @@ func create_list_of_problems_in_db() {
 		return
 	}
 	
-	for i,f := range []string{"data/train.csv", "data/test.csv"} {
+	for i,f := range []string{"data/test.csv", "data/train.csv", } {
 		fmt.Printf("Opening %s - %d\n", f, i)
 		
 		file, err := os.Open(f)
@@ -105,8 +105,8 @@ func create_list_of_problems_in_db() {
 			id, _ := strconv.Atoi(record[0])
 			steps, _ := strconv.Atoi(record[1])
 			
-			if i==0 {
-				// This is the training data : Let's give it a negative id to avoid confusion
+			if i>0 {
+				// This is training data : Let's give it a negative id to avoid confusion
 				id = -id
 			}
 			_, err = ins.Exec(id, steps, 0)
