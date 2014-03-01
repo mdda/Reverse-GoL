@@ -300,10 +300,30 @@ func main_read_stats(steps int) {
 	transitions.LoadCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps)) 
 }
 
+func main_create_fake_training_data() {
+	lps := LifeProblemSet{
+		problem:make(map[int]LifeProblem),
+		is_training:true,
+	}
+	
+	num_per_step:=200
+	
+	base := 100*1000
+	for steps:=1; steps<=5; steps++ {
+		for id:=base; id<base+num_per_step; id++ {
+			lps.problem[id].CreateFake(id, steps)
+			return
+		}
+		base+=num_per_step
+	}
+	//lps.save_csv("data/train_fake.csv")
+}
+
 const currently_running_version int = 1002
 
 func main() {
-	cmd:= flag.String("cmd", "", "Required : {run|submit}")
+	cmd:= flag.String("cmd", "", "Required : {run|submit|create}")
+	cmd_type:= flag.String("type", "", "{fake_training_data}")
 	
 	delta := flag.Int("delta", 0, "delta=%d, number of steps between start and end")
 	count := flag.Int("count", 0, "Number of ids to process")
@@ -321,23 +341,34 @@ func main() {
 	
 	//main_verify_training_examples()
 	
-	//main_create_stats(1)
-	//main_create_stats_all()
-	//main_read_stats(1)
-	
 	//main_population_score()
 	
-	if *cmd=="run" {
-		//test_open_db()
-		//return
+	if *cmd=="db" {
+		/// ./reverse-gol -cmd=db -type=test
+		if *cmd_type=="test" {
+			test_open_db()
+		}
 		
 		//create_list_of_problems_in_db() // NB: This sets up the 'problems' table to want answers...
 		
+		//reset_all_currently_processing(-1)
+	}
+	
+	if *cmd=="create" {
+		//main_create_stats(1)
+		//main_create_stats_all()
+		//main_read_stats(1)
+		
+		/// ./reverse-gol -cmd=create -type=fake_training_data
+		if *cmd_type=="fake_training_data" {
+			main_create_fake_training_data()
+		}
+		
 		//probs := list_of_interesting_problems_from_db(1,5,true) // training 
 		//fmt.Println(probs)
-		
-		//reset_all_currently_processing(-1)
-		
+	}
+	
+	if *cmd=="run" {
 		// To force DB to solve the 2 training problems : 50 and 54 : 
 		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
 		//steps:=5 // This is delta
