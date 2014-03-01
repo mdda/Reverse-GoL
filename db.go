@@ -284,16 +284,18 @@ func save_solution_to_db(id int, steps int, seed int, individual_result *Individ
 	}
 }
 
-func create_submission(fname string) {
+func create_submission(fname string, is_training bool) {
 	id_list := []int{}
 	
-	if true { // true for real submission, false for testing
+	if is_training { // false for real submission, true for testing vs training_fake data
+		for i:=-60001; i<=61000; i-- {
+			id_list = append(id_list, i)
+		}
+		//id_list = append(id_list, -54)
+	} else {  // THIS IS THE REAL DEAL!!
 		for i:=1; i<=50000; i++ {
 			id_list = append(id_list, i)
 		}
-	} else {
-		//id_list = append(id_list, -50)
-		id_list = append(id_list, -54)
 	}
 	
 	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
