@@ -146,7 +146,7 @@ func main_population_score(is_training bool, id int) {
 	image := NewImageSet(10, 12) // 10 rows of 12 images each, formatted 'appropriately'
 	
 	var kaggle LifeProblemSet
-	kaggle.load_csv(is_training, []int{id}) // Load from the training set
+	kaggle.load_csv(is_training, []int{id}) // Load from the CSV
 
 	problem := kaggle.problem[id]
 	
@@ -331,7 +331,8 @@ func main_create_fake_training_data() {
 // 1012 - 1010 and mutate based on end 20% of the time (80% based on error positions)
 // 1014 - 1012 and remove fitness pressure for emptier board (will occur by voting, maybe)
 // 1016 - 1014 and weight choice of start board for transitions towards start of list
-const currently_running_version int = 1016
+// 1020 - Fix mental problem of fake_data starting from same seed as synthetic_transition board generator...
+const currently_running_version int = 1020
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
@@ -379,6 +380,11 @@ func main() {
 	if *cmd=="create" {
 		/// ./reverse-gol -cmd=create -type=fake_training_data
 		if *cmd_type=="fake_training_data" {
+			if *seed==1 {
+				fmt.Println("Must not have seed same as one used to generate Synthetic Transitions!")
+				flag.Usage()
+				return
+			}
 			main_create_fake_training_data()
 			
 			// Prevent solving of actual training set (since this is where our state came from, so it's not particularly helpful
@@ -431,7 +437,7 @@ func main() {
 		}
 		
 		/// ./reverse-gol -cmd=visualize -type=ga -training=true -id=58 
-		/// ./reverse-gol -cmd=visualize -type=ga -training=true -id=60190
+		/// 	
 		if *cmd_type=="ga" {
 			if *id<=0 {
 				fmt.Println("Need to specify '-id=%d'")
@@ -476,7 +482,7 @@ func main() {
 			// create submission
 			fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
 			//fmt.Println(fname)
-			create_submission(fname, false, -1) // Submit for all steps
+			create_submission(fname, false, 5) // Submit for all steps
 		}
 	
 		/// ./reverse-gol -cmd=submit -type=fakescore
