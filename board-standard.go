@@ -248,7 +248,6 @@ func (problem *LifeProblem) CreateFake() {
 	start := NewBoard_BoolPacked(board_width, board_height)
 	end   := NewBoard_BoolPacked(board_width, board_height)
 	
-	empty := NewBoard_BoolPacked(board_width, board_height)
 	for found:=false; !found; {
 		// create a board with a random initial density U(0..1) 
 		uniform := rand.Float32()
@@ -276,7 +275,7 @@ func (problem *LifeProblem) CreateFake() {
 		//fmt.Println(end)
 		
 		// if end is not empty, then we've succeeded
-		if end.CompareTo(empty, nil) > 0 {
+		if end.CompareTo(board_empty, nil) > 0 {
 			found = true
 			//fmt.Println("Success!")
 		}

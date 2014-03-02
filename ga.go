@@ -66,6 +66,7 @@ func NewPopulation(size int, radius int, target *Board_BoolPacked, tc *Transitio
 }
 
 func (p *Population) OrderIndividualsBasedOnFitness(i_1, i_2 *Individual) (*Individual,*Individual) {  
+/*  This is potentially too-clever-by-half
 	if i_1.fitness == i_2.fitness {
 		// Secondary pressure to minimize count of on cells in starting board
 		
@@ -75,7 +76,9 @@ func (p *Population) OrderIndividualsBasedOnFitness(i_1, i_2 *Individual) (*Indi
 		if count_on_1 > count_on_2 {
 			i_1,i_2 = i_2,i_1 // Switch them so that i_1 is the fitter (lower is better for initial positions) of the two
 		}
-	} else if i_1.fitness < i_2.fitness {
+	} else 
+*/	
+	if i_1.fitness < i_2.fitness {
 		i_1,i_2 = i_2,i_1 // Switch them so that i_1 is the fitter (higher is better) of the two
 	}
 	return i_1, i_2
@@ -115,7 +118,7 @@ func (pop *Population) GenerationAfter(prev *Population) {
 		if counter==0 { // Reserve position 0 for a copy of the previous generation's best individual
 			best_individual := prev.BestIndividual()
 			individual.start.CopyFrom(best_individual.start)
-			individual.fitness = 0
+			individual.fitness = best_individual.fitness
 			continue
 		}
 		
@@ -131,8 +134,14 @@ func (pop *Population) GenerationAfter(prev *Population) {
 			if pop.crossover_pct<=choser && choser < (pop.crossover_pct + pop.mutation_pct) {
 				//individual.start.MutateRadiusBits(pop.mutation_loop_pct, pop.mutation_radius) // % do additional mutation, radius of action
 				
-				// For this individual, pick a position in the diff
-				x,y := i_chosen.diff.RandomBitPosition()
+				x,y := -1,-1
+				if rand.Intn(100)>20 {
+					// For this individual, pick a position in the diff
+					x,y = i_chosen.diff.RandomBitPosition()
+				} else {
+					// For this individual, pick a position in the target, just for a change
+					x,y = pop.target.RandomBitPosition()
+				}
 				
 				if x>=0 && y>=0 {
 					// Offset by a little bit...
@@ -145,14 +154,14 @@ func (pop *Population) GenerationAfter(prev *Population) {
 					// There are no errors...  So we don't have a basis for complaining, really
 					// So let's create a mask based on bits from the end (for variety)
 					
-					if false {
+					if true {
 						//fmt.Printf("No errors to mutate around : Try using the target instead of the diff\n")
 						//fmt.Println(i_chosen.start) // Check
 						x,y = pop.target.RandomBitPosition()
 						//fmt.Println("*** Isn't the end image DEFINED to be non-blank? ***")
 					}
 					
-					if true {
+					if false {
 						//fmt.Printf("No errors to mutate around : Try zeroing out bits in the start\n")
 						individual.start.MutateMask(individual.start, pop.mutation_loop_pct, 0) // % do additional mutation, radius of action
 						x,y = -1,-1 // Don't do the overlay thing
@@ -177,7 +186,7 @@ func (pop *Population) GenerationAfter(prev *Population) {
 						
 						// Use the chosen individual bits as a bit mask instead (i.e. DO SOMETHING)
 						
-						if true {
+						if false {
 							//fmt.Printf("Introducing random noise\n")
 							individual.start.MutateMask(individual.start, pop.mutation_loop_pct, pop.mutation_radius)
 						}
@@ -224,11 +233,10 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 	mismatch_from_true_start_initial, mismatch_from_true_start_latest, true_start_1s := -999,-999,-999
 	mismatch_from_true_end_initial, mismatch_from_true_end_latest, true_end_1s := 0,0,0
 	
-	empty_board := NewBoard_BoolPacked(board_width, board_height)
 	if lps.is_training {
-		true_start_1s = problem.start.CompareTo(empty_board, nil)
+		true_start_1s = problem.start.CompareTo(board_empty, nil)
 	}
-	true_end_1s = problem.end.CompareTo(empty_board, nil)
+	true_end_1s = problem.end.CompareTo(board_empty, nil)
 	
 	iter_max  := 2000
 	iter_last := 0
