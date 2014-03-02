@@ -372,9 +372,9 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==1 || seed==2 || seed==3) {
 			//if !(version==1002) {
 			
-			//if !(seed==4) {
+			if !(seed==4) {
 			//if !(seed==4 || seed==5) {
-			if !(version==1016) {
+			//if !(version==1016) {
 				
 			//if !(seed==1 || seed==2 || seed==3 || seed==4) {
 			//if !(seed==7) {
@@ -408,7 +408,6 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 		}
 
 		threshold := 50
-		
 		
 		// Now add a single instance of best board to the stats to act as a tie-breaker 
 		if best.valid {
