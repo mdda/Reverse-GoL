@@ -288,7 +288,8 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 		//fmt.Printf("%4d.best: Mismatch vs true {start,end} = {???,%3d}\n", iter, best_individual.fitness)
 		//fmt.Print(best_individual.start)
 
-		if iter>0 && (iter % 100 == 0) {
+		// TODO :: REVERT THIS EVIL CHANGE...
+		if iter>0 && (iter % 20 == 0) {
 			difference_over_100_generations := best_individual.start.CompareTo(best_individual_start, nil)
 			if difference_over_100_generations == 0 {
 				// Our best candidate hasn't improved in 100 generations
@@ -298,7 +299,8 @@ func create_solution(problem LifeProblem, lps *LifeProblemSet) *IndividualResult
 			}
 		}
 		
-		if iter % 100 == 0 {
+		// TODO :: REVERT THIS EVIL CHANGE...
+		if iter % 20 == 0 {
 			best_individual_start.CopyFrom(best_individual.start)
 		}
 		
