@@ -200,6 +200,64 @@ func list_of_interesting_problems_from_db(steps int, count int, is_training bool
 	return problem_list
 }
 
+/*
+// training examples are stored in the dbs with negative ids.  All ids output from here are corrected to be positive
+func list_of_focus_problems_based_on_current_solutions(steps int, count int, is_training bool) []int {
+	db := get_db_connection()
+	defer db.Close()
+	
+	problem_list := []int{}
+	
+	filter_training_or_test := "id>0"
+	if is_training {
+		filter_training_or_test = "id<0"
+	}
+	
+	// Only actually need id back
+	// SELECT id, MIN(mtef) mm FROM solutions WHERE steps=1 AND id>0 AND mm>0 AND mm<15 GROUP BY id LIMIT 20
+	rows, err := db.Query("SELECT id FROM solutions"+
+							" WHERE steps=? AND "+filter_training_or_test+
+							" AND MIN(mtef)>0 AND MIN(mtef)<15"+
+							" GROUP BY id"+ 
+							" LIMIT ?", 
+							steps, count)
+	if err != nil {
+		fmt.Println("Query interesting problems Error:", err)
+		return problem_list
+	}
+
+	update, err := db.Prepare("UPDATE problems SET currently_processing=1 WHERE id=?")
+	if err != nil {
+		fmt.Println("Update 'currently_processing' Prepare Error:", err)
+		return problem_list
+	}
+	defer update.Close()
+	
+	for rows.Next() {
+		var id, steps, solution_count,currently_processing int
+		err = rows.Scan(&id, &steps, &solution_count, &currently_processing)
+		//err = rows.Err() // get any error encountered during iteration
+		if err != nil {
+			fmt.Println("Query interesting problem Error:", err)
+			return problem_list
+		}
+		
+		_, err = update.Exec(id)
+		if err != nil {
+			fmt.Println("Update 'currently_processing' Exec Error:", err)
+			return problem_list
+		}
+
+		if is_training {
+			id=-id
+		}
+		problem_list = append(problem_list, id)
+	}
+	
+	return problem_list
+}
+*/
+
 func reset_all_currently_processing(is_training bool) { 
 	db := get_db_connection()
 	defer db.Close()
@@ -370,7 +428,7 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==1) {
 			//if !(seed==1 || seed==2) {
 			//if !(seed==1 || seed==2 || seed==3) {
-			if !(version==1002) {
+			//if !(version==1002) {
 			
 			//if !(seed==4) {
 			//if !(seed==4 || seed==5) {
@@ -384,7 +442,7 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==4 || seed==7) { // 1016x1 + 1018x1
 			
 			//if !(version==1020) {
-			//if !(version==1002 || version==1016) {
+			if !(version==1002 || version==1016) {
 				continue
 			}
 			
@@ -474,6 +532,8 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 				threshold=65 // Better for 5s than 50
 			}
 			*/
+			
+			fmt.Printf("**Search-for-needy-ids***,%d,%d,%d\n", id, best.steps, best.mtef)
 		}
 		if id_found {
 			count_ids_found++
@@ -550,4 +610,7 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
  * Clean out the solutions a little
  * delete from solutions where id>0 and seed=4
  * update problems set solution_count=3 where id>0 and solution_count=4 
+ * 
+ * Look at the distribution of mtefs within each id
+ * select id, steps, version, min(mtef), max(mtef) from solutions where id>0 group by steps, id, version
  */
