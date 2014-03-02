@@ -231,7 +231,7 @@ func (pl PatchList) GetRandomEntry_v1018() Patch {
 }
 
 func (pl PatchList) GetRandomEntry() Patch {
-	return pl.GetRandomEntry_v1018()
+	return pl.GetRandomEntry_v1016()
 }
 
 type TransitionCollectionMap struct {

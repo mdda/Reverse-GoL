@@ -331,7 +331,7 @@ func main_create_fake_training_data() {
 // 1012 - 1010 and mutate based on end 20% of the time (80% based on error positions)
 // 1014 - 1012 and remove fitness pressure for emptier board (will occur by voting, maybe)
 // 1016 - 1014 and weight choice of start board for transitions towards start of list
-const currently_running_version int = 1018
+const currently_running_version int = 1016
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
