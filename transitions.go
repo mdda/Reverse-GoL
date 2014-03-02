@@ -196,10 +196,22 @@ func (starts PatchMap) GetRandomEntryUNUSED() Patch {  // Not in use because of 
 }
 */
 
-func (pl PatchList) GetRandomEntry() Patch {
+func (pl PatchList) GetRandomEntry_Uniform() Patch {
 	n_starts := len(pl.starts)
 	start_random_index := rand.Intn(n_starts)
 	return pl.starts[start_random_index].patch
+}
+// This makes it more likely to pick something near the beginning of the list
+func (pl PatchList) GetRandomEntry() Patch {
+	n_starts := len(pl.starts)
+	start_random_index1 := rand.Intn(n_starts)
+	start_random_index2 := rand.Intn(n_starts)
+	if rand.Intn(100)<90 {
+		if start_random_index2<start_random_index1 {
+			start_random_index1=start_random_index2
+		}
+	}
+	return pl.starts[start_random_index1].patch
 }
 
 type TransitionCollectionMap struct {
@@ -393,12 +405,11 @@ func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max
 	start := NewBoard_BoolPacked(board_width, board_height)
 	end   := NewBoard_BoolPacked(board_width, board_height)
 	
-	empty := NewBoard_BoolPacked(board_width, board_height)
 	for iter:=0; iter<iter_max; iter++ {
 		for found:=false; !found; {
 			// create a board with a random initial density U(0..1) 
 			uniform := rand.Float32()
-			fmt.Printf("id[synth=%d].steps=%d, Uniform Density = %6.4f\n", iter, steps, uniform)
+			fmt.Printf("id[synth=%6d].steps=%d, Uniform Density = %6.4f\n", iter, steps, uniform)
 			
 			initial := NewBoard_BoolPacked(board_width, board_height)
 			initial.UniformRandom(uniform)
@@ -422,7 +433,7 @@ func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max
 			//fmt.Println(end)
 			
 			// if end is not empty, then we've succeeded
-			if end.CompareTo(empty, nil) > 0 {
+			if end.CompareTo(board_empty, nil) > 0 {
 				found = true
 				//fmt.Println("Success!")
 			}
@@ -430,7 +441,7 @@ func (t *TransitionCollectionMap) TrainingSynthetic_to_stats(steps int, iter_max
 		
 		existing_map_count := t.AddTransitionToMap(start, end)
 		
-		fmt.Printf("id[synth=%5d].steps=%d - existing=%3d/400\n", iter, steps, existing_map_count) 
+		fmt.Printf("id[synth=%6d].steps=%d - existing=%3d/400\n", iter, steps, existing_map_count) 
 	}
 	fmt.Printf("Total end-map count : %7d\n", len(t.pre)) 
 	fmt.Printf("Total record  count : %7d\n", iter_max) 

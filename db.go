@@ -299,7 +299,7 @@ func create_submission(fname string, is_training bool) {
 	}
 	
 	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
-	only_submit_for_steps_equals=3
+	//only_submit_for_steps_equals=5
 
 	only_allow_for_seed_equals  :=-1 // Set this for +ve to filter submission to include only specific seed answers (rest are zeroed as a base-line)
 	//only_allow_for_seed_equals  =1
@@ -375,7 +375,11 @@ func create_submission(fname string, is_training bool) {
 			}
 			//if !(seed==1) {
 			//if !(seed==1 || seed==2) {
-			if !(seed==1 || seed==2 || seed==3) {
+			//if !(seed==1 || seed==2 || seed==3) {
+			if !(seed==4) {
+			//if !(version==1016) {
+			//if !(seed==1 || seed==2 || seed==3 || seed==4) {
+			//if !(seed==3 || seed==4) {
 				continue
 			}
 			
@@ -415,6 +419,7 @@ func create_submission(fname string, is_training bool) {
 				//mtef_bar>15  // discredited
 				//iter_bar>650 // discredited
 				threshold = 50
+				//threshold = 85  // worse for 1002 and 1016
 			}
 			if best.steps == 2 {
 				// if best.mtef>4 || best.iter>350 {  // iter criteria discredited on fake training
@@ -430,16 +435,22 @@ func create_submission(fname string, is_training bool) {
 			if best.steps == 4 {
 				iter_bar=350  
 				mtef_bar=5
-				threshold = 85
+				threshold = 50
+				//threshold = 85
 			}
 			if best.steps == 5 {
 				// iter_bar=350   // iter criteria discredited on fake training
-				mtef_bar=5
-				threshold = 85
+				mtef_bar=10
+				//threshold = 30
+				threshold = 50 // also works for 1016 (but worse for 1002)
+				//threshold = 65 
+				//threshold = 75 
+				//threshold = 85 // flexible for 1016 and/or 1002
 			}
-			
-			if best.iter > iter_bar || best.mtef> mtef_bar {
-				submit_zero_for_this_id = true
+			if true {
+				if best.iter > iter_bar || best.mtef> mtef_bar {
+					//submit_zero_for_this_id = true
+				}
 			}
 		}
 		if id_found {
@@ -509,6 +520,7 @@ func create_submission(fname string, is_training bool) {
  * What is the distribution of solutions
  * select steps,solution_count,count(id) from problems where id>0 group by steps, solution_count order by steps, solution_count
  * select steps,seed,count(id) from solutions where id>0 group by steps, seed order by steps, seed
+ * select steps,version,seed, count(id) from solutions where id>0 group by steps, version, seed order by steps, version, seed
  * 
  * What is currently being worked on ::
  * select steps,solution_count,count(id) from problems where id>0 and currently_processing=1 group by steps, solution_count order by steps

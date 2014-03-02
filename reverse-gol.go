@@ -266,23 +266,27 @@ func main_population_score(is_training bool, id int) {
 	image.save("images/score_mutated.png")
 }
 
-func main_create_stats(steps int) {
+func main_create_stats(steps int, use_training_data bool) {
 	var transitions TransitionCollectionMap
 	
-	transitions.TrainingCSV_to_stats("data/train.csv", steps) 
-	// No flipping stats (#steps, count_of_training_examples, unique end-point-patches_raw, unique end-point-patches_ud-or-lr, unique end-point-patches_ud*lr ):
-	// 1  9866 648k 471k 454k
-	// 2 10042 620k 450k 434k
-	// 3  9947 589k 427k 411k
-	// 4 10089 565k 410k 394k
-	// 5  9956 534k 387k 374k
+	if use_training_data {
+		transitions.TrainingCSV_to_stats("data/train.csv", steps) 
+		// No flipping stats (#steps, count_of_training_examples, unique end-point-patches_raw, unique end-point-patches_ud-or-lr, unique end-point-patches_ud*lr ):
+		// 1  9866 648k 471k 454k
+		// 2 10042 620k 450k 434k
+		// 3  9947 589k 427k 411k
+		// 4 10089 565k 410k 394k
+		// 5  9956 534k 387k 374k
+	} else {
+		transitions.TrainingSynthetic_to_stats(steps, 200*1000) 
+	}
 	
 	transitions.SaveCSV(fmt.Sprintf(TransitionCollectionFileStrFmt, steps))
 }
 
-func main_create_stats_all() {
+func main_create_stats_all(use_training_data bool) {
 	for _,i := range( []int{1,2,3,4,5} ) {
-		main_create_stats(i)
+		main_create_stats(i, use_training_data)
 	}
 	/*
 [andrewsm@square reverse-gol]$ ls -l stats/
@@ -322,7 +326,12 @@ func main_create_fake_training_data() {
 	lps.save_csv("data/train_fake.csv")
 }
 
-const currently_running_version int = 1002
+// 1002 - using training stats only
+// 1010 - synthetic stats (200k)
+// 1012 - 1010 and mutate based on end 20% of the time (80% based on error positions)
+// 1014 - 1012 and remove fitness pressure for emptier board (will occur by voting, maybe)
+// 1016 - 1014 and weight choice of start board for transitions towards start of list
+const currently_running_version int = 1016
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
@@ -377,14 +386,23 @@ func main() {
 			// UPDATE problems SET solution_count=0 WHERE id>-100000 and id<-60000
 		}
 		
+		/// ./reverse-gol -cmd=create -type=training_set_transitions
 		if *cmd_type=="training_set_transitions" {
-			//main_create_stats(1)
-			//main_create_stats_all()
+			main_create_stats_all(true)
 			//main_read_stats(1)
 		}
 		
+		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=1
+		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=2
+		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=5
 		if *cmd_type=="synthetic_transitions" {
-			
+			if *delta<=0 {
+				fmt.Println("Need to specify '-delta=%d' to identify which stats to generate")
+				flag.Usage()
+				return
+			}
+			main_create_stats(*delta, false)
+			//main_read_stats(1)
 		}
 		
 	}
@@ -426,7 +444,11 @@ func main() {
 		// UPDATE problems SET solution_count=-2 WHERE id=-50 OR id=-54
 		// ./reverse-gol -cmd=run -delta=5 -count=200 -training=true
 		
-		/// ./reverse-gol -cmd=run -delta=4 -count=10000
+		/// ./reverse-gol -cmd=run -delta=1 -count=9977
+		/// ./reverse-gol -cmd=run -delta=2 -count=10059
+		/// ./reverse-gol -cmd=run -delta=3 -count=9995
+		/// ./reverse-gol -cmd=run -delta=4 -count=9823
+		/// ./reverse-gol -cmd=run -delta=5 -count=10146
 		if *delta<=0 {
 			fmt.Println("Need to specify '-delta=%d'")
 			flag.Usage()
