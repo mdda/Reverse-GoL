@@ -482,7 +482,7 @@ func main() {
 			// create submission
 			fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
 			//fmt.Println(fname)
-			create_submission(fname, false, 5) // Submit for all steps
+			create_submission(fname, false, -1) // Submit for all steps
 		}
 	
 		/// ./reverse-gol -cmd=submit -type=fakescore

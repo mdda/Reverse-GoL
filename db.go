@@ -370,7 +370,7 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==1) {
 			//if !(seed==1 || seed==2) {
 			//if !(seed==1 || seed==2 || seed==3) {
-			if !(version==1002) {
+			//if !(version==1002) {
 			
 			//if !(seed==4) {
 			//if !(seed==4 || seed==5) {
@@ -379,8 +379,11 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==1 || seed==2 || seed==3 || seed==4) {
 			//if !(seed==7) {
 			//if !(seed==7 || seed==8) {
+			
 			//if !(version==1018) {
 			//if !(seed==4 || seed==7) { // 1016x1 + 1018x1
+			
+			if !(version==1020) {
 				continue
 			}
 			
