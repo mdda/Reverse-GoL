@@ -471,9 +471,12 @@ func main() {
 		if *training_only {
 			fmt.Println("Running on Training Data")
 		}
-		problem_count_requested:=*count // This may be truncated, if there are less available ids (some may be processing already)
 		steps := *delta
-		pick_problems_from_db_and_solve_them(steps, problem_count_requested, *training_only)
+		// TODO : Revert back to original
+		//problem_count_requested:=*count // This may be truncated, if there are less available ids (some may be processing already)
+		//pick_problems_from_db_and_solve_them(steps, problem_count_requested, *training_only)
+		list_position:=*count
+		pick_problems_from_list_and_solve_them(steps, list_position) // NOT TRAINING-ENABLED
 	}
 	
 	if *cmd=="submit" {
