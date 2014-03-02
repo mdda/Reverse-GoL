@@ -328,6 +328,8 @@ type Work struct {
 	is_training bool
 	steps int
 	lps *LifeProblemSet
+	
+	number_of_times_to_run_this_id int
 }
 
 func problem_worker_for_queue(worker_id int, queue chan *Work) {
@@ -340,13 +342,24 @@ func problem_worker_for_queue(worker_id int, queue chan *Work) {
 		}
 		id := wp.id
 		fmt.Printf("worker #%d: received work :: %5d\n", worker_id, id)
+	
+		/*  HMM : For the concurrent code, should be creating a Source for each worker 
+		 *       - so that they aren't reseeding each other non-deterministically...
+		 * 
+		 * ***TODO***
+		 *func NewSource
+		 * func NewSource(seed int64) Source
+		 * NewSource returns a new pseudo-random Source seeded with the given value. 
+		*/
 		
-
-		seed := get_unprocessed_seed_from_db(id, wp.is_training)
-		fmt.Printf("(%5d/%5d) Running problem[%d].steps=%d (seed=%d)\n", wp.i, wp.n, id, wp.steps, seed)
-		rand.Seed(int64(seed))
-		individual_result := create_solution(wp.lps.problem[id], wp.lps)
-		save_solution_to_db(id, wp.steps, seed, individual_result, wp.is_training)
+		for i:=0; i< wp.number_of_times_to_run_this_id; i++ {
+			seed := get_unprocessed_seed_from_db(id, wp.is_training)
+			
+			fmt.Printf("(%5d/%5d) Running problem[%d].steps=%d (seed=%d)\n", wp.i, wp.n, id, wp.steps, seed)
+			rand.Seed(int64(seed))
+			individual_result := create_solution(wp.lps.problem[id], wp.lps)
+			save_solution_to_db(id, wp.steps, seed, individual_result, wp.is_training)
+		}
 	}
 }
 
@@ -393,6 +406,7 @@ func solve_list_of_problems_and_write_to_db(steps int, problem_list []int, is_tr
 			is_training:is_training,
 			steps:steps, 
 			lps:&kaggle,
+			number_of_times_to_run_this_id:1,
 		}
 		
 		now_time := time.Now()
