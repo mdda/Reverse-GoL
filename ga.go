@@ -351,11 +351,15 @@ func problem_worker_for_queue(worker_id int, queue chan *Work) {
 }
 
 func pick_problems_from_db_and_solve_them(steps int, problem_count_requested int, is_training bool) {  
-	var kaggle LifeProblemSet
-	
 	problem_list := list_of_interesting_problems_from_db(steps, problem_count_requested, is_training)
 	
 	//problem_list := []int{50,54}
+	solve_list_of_problems_and_write_to_db(steps, problem_list, is_training)
+}
+
+func solve_list_of_problems_and_write_to_db(steps int, problem_list []int, is_training bool) {  
+	var kaggle LifeProblemSet
+	
 	kaggle.load_csv(is_training, problem_list)
 
 	// Now ensure that the transition_collection is valid for this step size

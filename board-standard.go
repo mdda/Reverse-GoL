@@ -441,7 +441,15 @@ func determine_kaggle_score(fake_training_data_csv string, submission_csv string
 	total_boards := 0
 	for _,id := range id_list {
 		// This is a little bit of fakery, since the submission board is actually starts (in a one-datablock file format)
-		total_errors += training_data.problem[id].start.CompareTo(submission.problem[id].end, nil)
+		// so, what is in the submission.problem[id].end should really be in submission.problem[id].start
+		error := training_data.problem[id].start.CompareTo(submission.problem[id].end, nil)
+		
+		if true {
+			fmt.Printf("**diagnosis-by-id**,%d,%d\n", id, error)
+			/// in the interests of time... let's investigate the stats on a spreadsheet manually
+		}
+		
+		total_errors += error
 		total_boards++
 	}
 	score := float32(total_errors)/float32(total_boards)/400.0
