@@ -331,7 +331,7 @@ func main_create_fake_training_data() {
 // 1012 - 1010 and mutate based on end 20% of the time (80% based on error positions)
 // 1014 - 1012 and remove fitness pressure for emptier board (will occur by voting, maybe)
 // 1016 - 1014 and weight choice of start board for transitions towards start of list
-const currently_running_version int = 1016
+const currently_running_version int = 1018
 
 func main() {
 	cmd:= flag.String("cmd", "", "Required : {db|create|visualize|run|submit}")
@@ -394,6 +394,8 @@ func main() {
 		
 		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=1
 		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=2
+		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=3
+		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=4
 		/// ./reverse-gol -cmd=create -type=synthetic_transitions -delta=5
 		if *cmd_type=="synthetic_transitions" {
 			if *delta<=0 {
@@ -428,7 +430,8 @@ func main() {
 			main_verify_training_examples(*id)
 		}
 		
-		/// ./reverse-gol -cmd=visualize -type=ga -id=58 -training=true
+		/// ./reverse-gol -cmd=visualize -type=ga -training=true -id=58 
+		/// ./reverse-gol -cmd=visualize -type=ga -training=true -id=60190
 		if *cmd_type=="ga" {
 			if *id<=0 {
 				fmt.Println("Need to specify '-id=%d'")
@@ -473,14 +476,14 @@ func main() {
 			// create submission
 			fname := fmt.Sprintf("submissions/submission_mdda_%s.csv", time.Now().Format("2006-01-02_15-04"))
 			//fmt.Println(fname)
-			create_submission(fname, false)
+			create_submission(fname, false,-1) // Submit for all steps
 		}
 	
 		/// ./reverse-gol -cmd=submit -type=fakescore
 		if *cmd_type=="fakescore" {
 			// create submission based on the fake training data, and the score it "a la kaggle" vs train_fake.csv
 			fname := fmt.Sprintf("submissions/training-fake_%s.csv", time.Now().Format("2006-01-02_15-04"))
-			create_submission(fname, true)
+			create_submission(fname, true, *delta)
 			
 			score := determine_kaggle_score("data/train_fake.csv", fname)
 			fmt.Printf("\nKaggle equivalent score should be : %8.6f\n", score)

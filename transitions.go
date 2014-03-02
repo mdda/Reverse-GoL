@@ -196,13 +196,13 @@ func (starts PatchMap) GetRandomEntryUNUSED() Patch {  // Not in use because of 
 }
 */
 
-func (pl PatchList) GetRandomEntry_Uniform() Patch {
+func (pl PatchList) GetRandomEntry_v1002() Patch {
 	n_starts := len(pl.starts)
 	start_random_index := rand.Intn(n_starts)
 	return pl.starts[start_random_index].patch
 }
-// This makes it more likely to pick something near the beginning of the list
-func (pl PatchList) GetRandomEntry() Patch {
+// v1016 :: This makes it more likely to pick something near the beginning of the list
+func (pl PatchList) GetRandomEntry_v1016() Patch {
 	n_starts := len(pl.starts)
 	start_random_index1 := rand.Intn(n_starts)
 	start_random_index2 := rand.Intn(n_starts)
@@ -212,6 +212,26 @@ func (pl PatchList) GetRandomEntry() Patch {
 		}
 	}
 	return pl.starts[start_random_index1].patch
+}
+
+// v1018 :: This picks according to frequency distribution
+func (pl PatchList) GetRandomEntry_v1018() Patch {
+	random_index := rand.Intn(pl.freq_total)
+
+	patch := Patch(-1)
+	acc:=0
+	for _, pf := range pl.starts {
+		acc += pf.freq
+		if random_index < acc {
+			patch = pf.patch
+			break
+		}
+	}
+	return patch
+}
+
+func (pl PatchList) GetRandomEntry() Patch {
+	return pl.GetRandomEntry_v1018()
 }
 
 type TransitionCollectionMap struct {

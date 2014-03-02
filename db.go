@@ -284,7 +284,8 @@ func save_solution_to_db(id int, steps int, seed int, individual_result *Individ
 	}
 }
 
-func create_submission(fname string, is_training bool) {
+// only_submit_for_steps_equals : Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
+func create_submission(fname string, is_training bool, only_submit_for_steps_equals int) {
 	id_list := []int{}
 	
 	if is_training { // false for real submission, true for testing vs training_fake data
@@ -297,12 +298,6 @@ func create_submission(fname string, is_training bool) {
 			id_list = append(id_list, i)
 		}
 	}
-	
-	only_submit_for_steps_equals:=-1 // Set this for +ve to filter submission to include only specific steps answers (rest are zeroed as a base-line)
-	//only_submit_for_steps_equals=5
-
-	only_allow_for_seed_equals  :=-1 // Set this for +ve to filter submission to include only specific seed answers (rest are zeroed as a base-line)
-	//only_allow_for_seed_equals  =1
 	
 	db := get_db_connection()
 	defer db.Close()
@@ -344,6 +339,8 @@ func create_submission(fname string, is_training bool) {
 		best := BestRow{valid:false}
 		id_found:=false
 		
+		samples_found:=0
+		
 		submit_zero_for_this_id:=false
 		stats := NewBoardStats(board_width, board_height)
 		for rows.Next() {
@@ -370,16 +367,19 @@ func create_submission(fname string, is_training bool) {
 				continue
 			}
 			
-			if only_allow_for_seed_equals>0 && seed!=only_allow_for_seed_equals {
-				continue
-			}
 			//if !(seed==1) {
 			//if !(seed==1 || seed==2) {
 			//if !(seed==1 || seed==2 || seed==3) {
+			
 			if !(seed==4) {
+			//if !(seed==4 || seed==5) {
 			//if !(version==1016) {
+				
 			//if !(seed==1 || seed==2 || seed==3 || seed==4) {
-			//if !(seed==3 || seed==4) {
+			//if !(seed==7) {
+			//if !(seed==7 || seed==8) {
+			//if !(version==1018) {
+			//if !(seed==4 || seed==7) { // 1016x1 + 1018x1
 				continue
 			}
 			
@@ -390,6 +390,7 @@ func create_submission(fname string, is_training bool) {
 			start_board.AddToStats(stats)
 			start_board.AddToStats(stats)
 			//fmt.Println(start_board)
+			samples_found++
 			
 			// Figure out whether this is going to be the best board for tie-breaking
 			this_is_better_than_current_best := !best.valid // This picks up the first one immediately
@@ -419,6 +420,7 @@ func create_submission(fname string, is_training bool) {
 				//mtef_bar>15  // discredited
 				//iter_bar>650 // discredited
 				threshold = 50
+				//threshold = 65 // This is worse than 50 for 1016
 				//threshold = 85  // worse for 1002 and 1016
 			}
 			if best.steps == 2 {
@@ -426,16 +428,20 @@ func create_submission(fname string, is_training bool) {
 				// iter_bar=350   // iter criteria discredited on fake training
 				//mtef_bar=20 // no effect
 				threshold = 50
+				//threshold = 65 // This is worse than 50 for 1016
 			}
 			if best.steps == 3 {
 				// iter_bar=350   // iter criteria discredited on fake training
 				mtef_bar = 10
-				threshold = 85
+				//threshold = 50
+				threshold = 65
+				//threshold = 85
 			}
 			if best.steps == 4 {
 				iter_bar=350  
 				mtef_bar=5
 				threshold = 50
+				threshold = 65
 				//threshold = 85
 			}
 			if best.steps == 5 {
@@ -443,7 +449,7 @@ func create_submission(fname string, is_training bool) {
 				mtef_bar=10
 				//threshold = 30
 				threshold = 50 // also works for 1016 (but worse for 1002)
-				//threshold = 65 
+				threshold = 65 
 				//threshold = 75 
 				//threshold = 85 // flexible for 1016 and/or 1002
 			}
@@ -452,6 +458,15 @@ func create_submission(fname string, is_training bool) {
 					//submit_zero_for_this_id = true
 				}
 			}
+			/*
+			threshold=50
+			if samples_found==2 {
+				threshold=65 // Better for 5s than 50
+			}
+			if samples_found==3 {
+				threshold=65 // Better for 5s than 50
+			}
+			*/
 		}
 		if id_found {
 			count_ids_found++
@@ -463,9 +478,9 @@ func create_submission(fname string, is_training bool) {
 		guess_board := NewBoard_BoolPacked(board_width, board_height)
 		guess_board.ThresholdStats(stats, threshold)
 		
-		//guess_board.ThresholdStats(stats, 50) // This reflects (just the best for n=2), (majority for 3), (majority+boost for 4)
-		//guess_board.ThresholdStats(stats, 65) // This needs 2/2
-		//guess_board.ThresholdStats(stats, 85) // This reflects (all for n=2), (all for n=3), (all for n=4)
+		//guess_board.ThresholdStats(stats, 50) // This needs 1/2 or 2/3 or 2/4 i.e. a majority or more
+		//guess_board.ThresholdStats(stats, 65) // This needs 2/2 or 2/3 or 3/4
+		//guess_board.ThresholdStats(stats, 85) // This needs 2/2 or 3/3 or 4/4 i.e. all
 		
 		//fmt.Println(guess_board)
 		
