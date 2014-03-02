@@ -370,7 +370,7 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==1) {
 			//if !(seed==1 || seed==2) {
 			//if !(seed==1 || seed==2 || seed==3) {
-			//if !(version==1002) {
+			if !(version==1002) {
 			
 			//if !(seed==4) {
 			//if !(seed==4 || seed==5) {
@@ -383,7 +383,8 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(version==1018) {
 			//if !(seed==4 || seed==7) { // 1016x1 + 1018x1
 			
-			if !(version==1020) {
+			//if !(version==1020) {
+			//if !(version==1002 || version==1016) {
 				continue
 			}
 			
@@ -439,26 +440,29 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 				//threshold = 50
 				threshold = 65
 				//threshold = 85
+				threshold = 85
 			}
 			if best.steps == 4 {
-				iter_bar=350  
-				mtef_bar=5
+				//iter_bar=350  
+				mtef_bar=10
 				threshold = 50
 				threshold = 65
 				//threshold = 85
+				threshold = 85
 			}
 			if best.steps == 5 {
 				// iter_bar=350   // iter criteria discredited on fake training
 				mtef_bar=10
+				// mtef_bar=2,5 didn't wors as well as 10
 				//threshold = 30
 				threshold = 50 // also works for 1016 (but worse for 1002)
 				threshold = 65 
 				//threshold = 75 
-				//threshold = 85 // flexible for 1016 and/or 1002
+				threshold = 85 // flexible for 1016 and/or 1002
 			}
 			if true {
 				if best.iter > iter_bar || best.mtef> mtef_bar {
-					//submit_zero_for_this_id = true
+					submit_zero_for_this_id = true
 				}
 			}
 			/*
