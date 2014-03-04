@@ -442,8 +442,11 @@ func create_submission(fname string, is_training bool, only_submit_for_steps_equ
 			//if !(seed==4 || seed==7) { // 1016x1 + 1018x1
 			
 			//if !(version==1020) {
-			if !(version==1002 || version==1016) {
+			if !(version==1002 || version==1016 || version==1020) {
 				continue
+			}
+			if version==1020 && mtef>20 {
+				continue // Dump the new stuff if it doesn't add anything
 			}
 			
 			start_board := NewBoard_BoolPacked(board_width, board_height)
