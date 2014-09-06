@@ -1,0 +1,37 @@
+
+cd sketchpad/kaggle/reverse-gol/
+cd /mnt/data/OpenSource-GitHub/
+ 
+git clone --no-hardlinks ~/sketchpad Reverse-GoL
+cd Reverse-GoL/
+
+git filter-branch --subdirectory-filter kaggle/reverse-gol
+more .git/config 
+git remote rm origin
+git update-ref -d refs/original/refs/heads/master
+git reflog expire --expire=now --all
+git repack -ad
+du -b
+
+git gc --aggressive --prune=now
+du -b
+
+git filter-branch --tree-filter 'rm -rf 2014-06-05_Presentation' HEAD
+echo 2014-06-05_Presentation/ >> .gitignore
+git add .gitignore 
+du -b
+
+git gc --aggressive --prune=now
+du -b
+
+git commit -a -m "Extracted Reverse-GoL from SketchPad"
+git remote add origin https://github.com/mdda/Reverse-GoL.git
+
+## Add [User] section, so that GitHub recognises me
+scite .git/config 
+
+git remote -v
+git push -u origin master
+
+git pull
+ 
