@@ -19,7 +19,15 @@ cd <ThisRepo>
 GOPATH=`pwd` go build reverse-gol.go speed_packed.go ga.go board-standard.go transitions.go db.go && ./reverse-gol
 ```
 
-*TODO : Add installation of mysql driver.*
+Installation of MySQL library : 
+
+```
+GOPATH=`pwd` go get github.com/go-sql-driver/mysql
+```
+
+Then, (for definiteness, obviously you can change these defaults by editing ```db.go:48```) create a database user 'reverse-gol' with password 'reverse-gol' with access rights to database 'reverse-gol'.
+
+The MySQL table creation commands are at the beginning of ```db.go``` - and you'll have to run these manually yourself.
 
 
 
