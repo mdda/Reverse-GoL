@@ -1,7 +1,19 @@
 Reverse-GoL
 ===========
 
-This is my Kaggle entry for "Reverse Game-of-Life" using Genetic Algorithms and GoLang
+This is my Kaggle entry for the "Reverse Game-of-Life" competition that ended in May 2014.  
+
+The general approach is to use Genetic Algorithms to generate precursor board(s) that target the desired end-state.  
+As a sub-goal, I used this as an opportunity to create something self-contained in GoLang.
+
+In general, however, the top of the leaderboard was dominated by people with the computing power (and smarts) to 
+enumerate the precursor boards exhaustively.  
+
+Therefore, while my approach is interesting, it's main value is in the 'lessons learned' : And, of course, 
+whatever useful code you can find in this project.
+
+I also have to emphasise that this project was coded rather rapidly, particularly in the end-stages - so there 
+are definitely a lot of rough edges (although some parts are quite refined - it's just really uneven...)
 
 
 Presentation
