@@ -19,7 +19,7 @@ are definitely a lot of rough edges (although some parts are quite refined - it'
 Presentation
 -------------------
 
-There's a presentation about the GoLang / Kaggle experience at http://RedCatLabs.com/2014-06-05_Reverse-GoL/
+There's a presentation about the GoLang / Kaggle experience at http://RedCatLabs.com/2014-10-14_Reverse-GoL/
 
 
 Installation
